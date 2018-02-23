@@ -79,9 +79,7 @@ examples  := $(examples.c:examples/%.c=$(OBJDIR)/%)
 examples  += $(examples.f:examples/%.f=$(OBJDIR)/%)
 # backends/[ref & occa]
 ref.c     := $(sort $(wildcard backends/ref/*.c))
-ref.o     := $(ref.c:%.c=$(OBJDIR)/%.o)
 occa.c    := $(sort $(wildcard backends/occa/*.c))
-occa.o    := $(occa.c:%.c=$(OBJDIR)/%.o)
 
 # Output using the 216-color rules mode
 rule_file = $(notdir $(1))
@@ -115,12 +113,12 @@ all:;@$(MAKE) $(MFLAGS) V=$(V) this
 
 $(libceed) : LDFLAGS += $(if $(DARWIN), -install_name $(abspath $(libceed)))
 
-$(libceed) : $(ref.o)
+libceed.c += $(ref.c)
 ifneq ($(wildcard $(OCCA_DIR)/lib/libocca.*),)
   $(libceed) : LDFLAGS += -L$(OCCA_DIR)/lib -Wl,-rpath,$(abspath $(OCCA_DIR)/lib)
   $(libceed) : LDLIBS += -locca #-lrt -ldl
-  $(libceed) : $(occa.o)
-  $(occa.o) : CFLAGS += -I$(OCCA_DIR)/include
+  libceed.c += $(occa.c)
+  $(occa.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I$(OCCA_DIR)/include
 endif
 $(libceed) : $(libceed.c:%.c=$(OBJDIR)/%.o) | $$(@D)/.DIR
 	$(call quiet,CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS)
@@ -165,13 +163,19 @@ install : $(libceed) $(OBJDIR)/ceed.pc
 	$(INSTALL_DATA) $(libceed) "$(DESTDIR)$(libdir)/"
 	$(INSTALL_DATA) $(OBJDIR)/ceed.pc "$(DESTDIR)$(pkgconfigdir)/"
 
-.PHONY: all cln clean print test tst examples astyle install
+.PHONY: all cln clean print test tst examples astyle install doc
 cln clean :
 	$(RM) *.o *.d $(libceed)
 	$(RM) -r *.dSYM $(OBJDIR) $(LIBDIR)/pkgconfig
 	$(MAKE) -C examples clean
 	$(MAKE) -C examples/mfem clean
 	cd examples/nek5000; bash make-nek-examples.sh clean; cd ../..;
+
+distclean : clean
+	rm -rf doc/html
+
+doc :
+	doxygen Doxyfile
 
 astyle :
 	astyle --style=google --indent=spaces=2 --max-code-length=80 \
