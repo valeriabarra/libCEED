@@ -27,7 +27,7 @@
 #CC=
 
 ## list of examples to make
-EXAMPLES=ex1
+EXAMPLES=ex1, ex1noceed
 
 ###############################################################################
 # DONT'T TOUCH WHAT FOLLOWS !!!
