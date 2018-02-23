@@ -34,7 +34,7 @@ EXAMPLES=ex1
 ###############################################################################
 # Set defaults for the parameters
 : ${NEK5K_DIR:=`cd "../../../Nek5000"; pwd`}
-: ${FC:="mpif77"}
+: ${FC:="mpifort"}
 : ${CC:="mpicc"}
 
 # See if its just cleaning and if yes, clean and exit
