@@ -378,7 +378,7 @@ c-----------------------------------------------------------------------
       return
       end
       c-----------------------------------------------------------------------
-            subroutine cggos(u1,r1,h1,h2,rmult,binv,tin,maxit)
+            subroutine cggos_noceed(u1,r1,h1,h2,rmult,binv,tin,maxit)
 
       c     Vector conjugate gradient iteration for solution of uncoupled
       c     Helmholtz equations
@@ -428,7 +428,7 @@ c-----------------------------------------------------------------------
             rpp1(1) = wv  (1)
 
             do 1000 iter=1,maxit
-               call axhm1    (pap,ap1,p1,h1,h2)
+               call axhm1_noceed    (pap,ap1,p1,h1,h2)
                call gop      (pap,wk,'+  ',1)
                call xmask1   (ap1,nel)
                call dssum    (ap1,nx1,ny1,nz1)
@@ -449,7 +449,7 @@ c-----------------------------------------------------------------------
                rbnorm=wv(1)
                nx = nx1-1
                if (nio.eq.0) write(6,1) ifield,istep,iter,nx,(wv(k),k=1,1)
-         1     format(i2,i9,i5,i4,1p1e12.4,' cggos')
+         1     format(i2,i9,i5,i4,1p1e12.4,' cggos_noceed')
 
                if (rbnorm.lt.tol) then
                   ifin = iter
@@ -488,12 +488,12 @@ c-----------------------------------------------------------------------
 
             maxit=iter
 
-       2000 format(i12,1x,'cggos/fluid: no iteration - rbnorm =', 2E13.4)
-       2010 format(i12,1x,'cggos/ mesh: no iteration - rbnorm =', 2E13.4)
-       3000 format(i12,1x,'cggos/fluid: ',I6,5E13.4)
-       3010 format(i12,1x,'cggos/ Mesh: ',I6,5E13.4)
-       3001 format(2i6,' Unconverged cggos/Fluid: rbnorm =',2E13.6)
-       3011 format(2i6,' Unconverged cggos/Mesh : rbnorm =',2E13.6)
+       2000 format(i12,1x,'cggos_noceed/fluid: no iteration - rbnorm =', 2E13.4)
+       2010 format(i12,1x,'cggos_noceed/ mesh: no iteration - rbnorm =', 2E13.4)
+       3000 format(i12,1x,'cggos_noceed/fluid: ',I6,5E13.4)
+       3010 format(i12,1x,'cggos_noceed/ Mesh: ',I6,5E13.4)
+       3001 format(2i6,' Unconverged cggos_noceed/Fluid: rbnorm =',2E13.6)
+       3011 format(2i6,' Unconverged cggos_noceed/Mesh : rbnorm =',2E13.6)
 
             return
             end
@@ -519,7 +519,7 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine axhm1(pap,ap1,p1,h1,h2)
+      subroutine axhm1_noceed(pap,ap1,p1,h1,h2)
 
 c     Vector conjugate gradient matvec for solution of uncoupled
 c     Helmholtz equations
@@ -789,7 +789,7 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine userchk
+      subroutine userchk_noceed
       include 'SIZE'
       include 'TOTAL'
       include 'CTIMER'  ! ifsync
@@ -862,9 +862,9 @@ c     call dsavg(e1)
       maxit3=maxit
 
       tstart = dnekclock()
-      call cggos(u1,r1,h1,h2,vmult,binvm1,tol,maxit1)
-      call cggos(u2,r2,h1,h2,vmult,binvm1,tol,maxit2)
-      call cggos(u3,r3,h1,h2,vmult,binvm1,tol,maxit3)
+      call cggos_noceed(u1,r1,h1,h2,vmult,binvm1,tol,maxit1)
+      call cggos_noceed(u2,r2,h1,h2,vmult,binvm1,tol,maxit2)
+      call cggos_noceed(u3,r3,h1,h2,vmult,binvm1,tol,maxit3)
       tstop  = dnekclock()
 
       telaps = (tstop-tstart)
@@ -898,7 +898,7 @@ c     call dsavg(e1)
 c     Uncomment the exitti command below if you want to quit as soon as
 c     we are done with timing. But this will exit with a non-zero status
 c     and will print out an error message.
-c      call exitti('quit after cggos$',0)
+c      call exitti('quit after cggos_noceed$',0)
 
       return
       end
@@ -945,7 +945,7 @@ c-----------------------------------------------------------------------
       ierr=0
       end
       c-----------------------------------------------------------------------
-            subroutine axhm1(pap,ap1,p1,h1,h2)
+            subroutine axhm1_noceed(pap,ap1,p1,h1,h2)
 
       c     Vector conjugate gradient matvec for solution of uncoupled
       c     Helmholtz equations
