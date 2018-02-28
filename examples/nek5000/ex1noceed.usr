@@ -350,7 +350,7 @@ c     Output: ur,us         Input:u,N,D,Dt
 
       return
       end
-c=======================================================================
+c---------------------------------------------------------------------
       subroutine xmask    (r1,r2,r3,nelv)
       real r1(1),r2(1),r3(1)
 
@@ -377,127 +377,123 @@ c-----------------------------------------------------------------------
 
       return
       end
-      c-----------------------------------------------------------------------
-            subroutine cggos_noceed(u1,r1,h1,h2,rmult,binv,tin,maxit)
+c-----------------------------------------------------------------------
+      subroutine cggos_noceed(u1,r1,h1,h2,rmult,binv,tin,maxit)
 
-      c     Vector conjugate gradient iteration for solution of uncoupled
-      c     Helmholtz equations
+c     Vector conjugate gradient iteration for solution of uncoupled
+c     Helmholtz equations
 
-            include 'SIZE'
-            include 'TOTAL'
-            include 'DOMAIN'
-            include 'FDMH1'
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DOMAIN'
+      include 'FDMH1'
 
-            real u1(1),r1(1),h1(1),h2(1),rmult(1),binv(1)
+      real u1(1),r1(1),h1(1),h2(1),rmult(1),binv(1)
 
-            common /scrcg1/ wv(3),wk(3),rpp1(3),rpp2(3),alph(3),beta(3),pap(3)
+      common /scrcg1/ wv(3),wk(3),rpp1(3),rpp2(3),alph(3),beta(3),pap(3)
 
-            parameter (lt=lx1*ly1*lz1*lelt)
-            common /scrcg/  dpc(lt)
-           $     ,          p1 (lt)
-           $     ,          z1 (lt)
+      parameter (lt=lx1*ly1*lz1*lelt)
+      common /scrcg/  dpc(lt)
+     $     ,          p1 (lt)
+     $     ,          z1 (lt)
 
+      real ap1(lt)
+      equivalence (ap1,z1)
 
-            real ap1(lt)
-            equivalence (ap1,z1)
+      vol   = volfld(ifield)
+      nel   = nelfld(ifield)
+      nxyz  = lx1*ly1*lz1
+      n     = nxyz*nel
 
+      tol=tin
 
-            vol   = volfld(ifield)
-            nel   = nelfld(ifield)
-            nxyz  = lx1*ly1*lz1
-            n     = nxyz*nel
+      do i=1,n
+         u1(i)=0
+      enddo
 
-            tol=tin
+c     Evaluate diagional pre-conidtioner for fluid solve
+      call setprecn (dpc,h1,h2)
 
-            do i=1,n
-               u1(i)=0
-            enddo
+      wv(1)=0
+      do i=1,n
+         s=rmult(i)                   !      -1
+         p1(i)=dpc(i)*r1(i)           ! p = M    r
+         wv(1)=wv(1)+s*p1(i)*r1(i)    !r p
+      enddo
+      call gop(wv,wk,'+  ',1)
+      rpp1(1) = wv  (1)
 
+      do 1000 iter=1,maxit
+         call axhm1_noceed    (pap,ap1,p1,h1,h2)
+         call gop      (pap,wk,'+  ',1)
+         call xmask1   (ap1,nel)
+         call dssum    (ap1,nx1,ny1,nz1)
+         alph(1) = rpp1(1)/pap(1)
 
-      c     Evaluate diagional pre-conidtioner for fluid solve
-            call setprecn (dpc,h1,h2)
+         do i=1,n
+            u1(i)=u1(i)+alph(1)* p1(i)
+            r1(i)=r1(i)-alph(1)*ap1(i)
+         enddo
 
+c        tolerance check here
+         wv(1)=0
+         do i=1,n
+            s=abs(h1(i)-u1(i))
+            wv(1)=max(wv(1),s)
+         enddo
+         call gop(wv,wk,'M  ',1)
+         rbnorm=wv(1)
+         nx = nx1-1
+         if (nio.eq.0) write(6,1) ifield,istep,iter,nx,(wv(k),k=1,1)
+   1     format(i2,i9,i5,i4,1p1e12.4,' cggos_noceed')
 
-            wv(1)=0
-            do i=1,n
-               s=rmult(i)                   !      -1
-               p1(i)=dpc(i)*r1(i)           ! p = M    r
-               wv(1)=wv(1)+s*p1(i)*r1(i)    !r p
-            enddo
-            call gop(wv,wk,'+  ',1)
-            rpp1(1) = wv  (1)
+         if (rbnorm.lt.tol) then
+            ifin = iter
+            if (nio.eq.0) then
+               if (matmod.ge.0) write(6,3000) istep,ifin,rbnorm,tol
+               if (matmod.lt.0) write(6,3010) istep,ifin,rbnorm,tol
+            endif
+            goto 9999
+         endif
 
-            do 1000 iter=1,maxit
-               call axhm1_noceed    (pap,ap1,p1,h1,h2)
-               call gop      (pap,wk,'+  ',1)
-               call xmask1   (ap1,nel)
-               call dssum    (ap1,nx1,ny1,nz1)
-               alph(1) = rpp1(1)/pap(1)
+         wv(1)=0
+         do i=1,n
+            s=rmult(i)
+            z1(i)=dpc(i)*r1(i)
+            wv(1)=wv(1)+s*z1(i)*r1(i)   ! r z
+         enddo
+         call gop(wv,wk,'+  ',1)
 
-               do i=1,n
-                  u1(i)=u1(i)+alph(1)* p1(i)
-                  r1(i)=r1(i)-alph(1)*ap1(i)
-               enddo
+         rpp2(1)=rpp1(1)
+         rpp1(1)=wv  (1)
+         beta(1)=rpp1(1)/rpp2(1)
 
-      c        tolerance check here
-               wv(1)=0
-               do i=1,n
-                  s=abs(h1(i)-u1(i))
-                  wv(1)=max(wv(1),s)
-               enddo
-               call gop(wv,wk,'M  ',1)
-               rbnorm=wv(1)
-               nx = nx1-1
-               if (nio.eq.0) write(6,1) ifield,istep,iter,nx,(wv(k),k=1,1)
-         1     format(i2,i9,i5,i4,1p1e12.4,' cggos_noceed')
-
-               if (rbnorm.lt.tol) then
-                  ifin = iter
-                  if (nio.eq.0) then
-                     if (matmod.ge.0) write(6,3000) istep,ifin,rbnorm,tol
-                     if (matmod.lt.0) write(6,3010) istep,ifin,rbnorm,tol
-                  endif
-                  goto 9999
-               endif
-
-               wv(1)=0
-               do i=1,n
-                  s=rmult(i)
-                  z1(i)=dpc(i)*r1(i)
-                  wv(1)=wv(1)+s*z1(i)*r1(i)   ! r z
-               enddo
-               call gop(wv,wk,'+  ',1)
-
-               rpp2(1)=rpp1(1)
-               rpp1(1)=wv  (1)
-               beta(1)=rpp1(1)/rpp2(1)
-
-               do i=1,n
-                  p1(i)=z1(i) + beta(1)*p1(i)
-               enddo
+         do i=1,n
+            p1(i)=z1(i) + beta(1)*p1(i)
+         enddo
 
 
-       1000 continue
+ 1000 continue
 
-            if (matmod.ge.0.and.nio.eq.0) write (6,3001) istep,iter,rbnorm,tol
-            if (matmod.lt.0.and.nio.eq.0) write (6,3011) istep,iter,rbnorm,tol
+      if (matmod.ge.0.and.nio.eq.0) write (6,3001) istep,iter,rbnorm,tol
+      if (matmod.lt.0.and.nio.eq.0) write (6,3011) istep,iter,rbnorm,tol
 
-            iter = iter-1
+      iter = iter-1
 
-       9999 continue
+ 9999 continue
 
-            maxit=iter
+      maxit=iter
 
-       2000 format(i12,1x,'cggos_noceed/fluid: no iteration - rbnorm =', 2E13.4)
-       2010 format(i12,1x,'cggos_noceed/ mesh: no iteration - rbnorm =', 2E13.4)
-       3000 format(i12,1x,'cggos_noceed/fluid: ',I6,5E13.4)
-       3010 format(i12,1x,'cggos_noceed/ Mesh: ',I6,5E13.4)
-       3001 format(2i6,' Unconverged cggos_noceed/Fluid: rbnorm =',2E13.6)
-       3011 format(2i6,' Unconverged cggos_noceed/Mesh : rbnorm =',2E13.6)
+ 2000 format(i12,1x,'cggos_noceed/fluid: no iteration - rbnorm =', 2E13.4)
+ 2010 format(i12,1x,'cggos_noceed/ mesh: no iteration - rbnorm =', 2E13.4)
+ 3000 format(i12,1x,'cggos_noceed/fluid: ',I6,5E13.4)
+ 3010 format(i12,1x,'cggos_noceed/ Mesh: ',I6,5E13.4)
+ 3001 format(2i6,' Unconverged cggos_noceed/Fluid: rbnorm =',2E13.6)
+ 3011 format(2i6,' Unconverged cggos_noceed/Mesh : rbnorm =',2E13.6)
 
-            return
-            end
-      c-----------------------------------------------------------------------
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine ax_e(w,u,g,h1,h2,b,ju,us,ut) ! Local matrix-vector product
       include 'SIZE'
       include 'TOTAL'
@@ -944,46 +940,44 @@ c-----------------------------------------------------------------------
 
       ierr=0
       end
-      c-----------------------------------------------------------------------
-            subroutine axhm1_noceed(pap,ap1,p1,h1,h2)
+c-----------------------------------------------------------------------
+     subroutine axhm1_noceed(pap,ap1,p1,h1,h2)
 
-      c     Vector conjugate gradient matvec for solution of uncoupled
-      c     Helmholtz equations
+c     Vector conjugate gradient matvec for solution of uncoupled
+c     Helmholtz equations
 
-            include 'SIZE'
-            include 'TOTAL'
+      include 'SIZE'
+      include 'TOTAL'
 
-            parameter (lx=lx1*ly1*lz1,lg=3+3*(ldim-2))
-            real         gf(lg,lx,lelt)             ! Equivalence new gf() data
-            equivalence (gf,g1m1)                   ! layout to g1m1...g6m1
+      parameter (lx=lx1*ly1*lz1,lg=3+3*(ldim-2))
+      real         gf(lg,lx,lelt)             ! Equivalence new gf() data
+      equivalence (gf,g1m1)                   ! layout to g1m1...g6m1
 
+      real ap1(lx,lelt)
+      real  p1(lx,lelt)
+      real  h1(lx,lelt), h2(lx,lelt)
 
-            real ap1(lx,lelt)
-            real  p1(lx,lelt)
-            real  h1(lx,lelt), h2(lx,lelt)
+      real ur(lx),us(lx),ut(lx)
+      common /ctmp1/ ur,us,ut
 
-            real ur(lx),us(lx),ut(lx)
-            common /ctmp1/ ur,us,ut
+      integer e
 
-            integer e
+      pap=0
 
+      nxq = nx1+1
 
-            pap=0
+      k=1
+      do e=1,nelt
 
-            nxq = nx1+1
+         call ax_e(ap1(1,e),p1(1,e),gf(1,1,e),h1(1,e),h2(k,1)
+     $                                          ,bm1(1,1,1,e),ur,us,ut)
+         do i=1,lx
+           pap=pap+ap1(i,e)*p1(i,e)
+         enddo
+         k=k+nxq*nxq*nxq
 
-            k=1
-            do e=1,nelt
+      enddo
 
-               call ax_e(ap1(1,e),p1(1,e),gf(1,1,e),h1(1,e),h2(k,1)
-           $                                          ,bm1(1,1,1,e),ur,us,ut)
-               do i=1,lx
-                 pap=pap+ap1(i,e)*p1(i,e)
-               enddo
-               k=k+nxq*nxq*nxq
-
-            enddo
-
-            return
-            end
-      c-----------------------------------------------------------------------
+      return
+      end
+c-----------------------------------------------------------------------
