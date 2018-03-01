@@ -783,7 +783,7 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine userchk_noceed
+      subroutine userchk
       include 'SIZE'
       include 'TOTAL'
       include 'CTIMER'  ! ifsync
