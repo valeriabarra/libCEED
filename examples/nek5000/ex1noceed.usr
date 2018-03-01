@@ -513,7 +513,7 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-      subroutine axhm1_noceed(pap,ap1,p1,h1,h2)
+      subroutine axhm1(pap,ap1,p1,h1,h2)
 
 c     Vector conjugate gradient matvec for solution of uncoupled
 c     Helmholtz equations
