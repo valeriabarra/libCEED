@@ -73,7 +73,7 @@ for ex in $EXAMPLES; do
     cp SIZE.in SIZE
   fi
 
-  ./makenek ex1 2>&1 >> $ex.build.log
+  ./makenek $ex 2>&1 >> $ex.build.log
 
   if [[ ! -f ./nek5000 ]]; then
     echo "  Building $ex failed. See $ex.build.log for details."
