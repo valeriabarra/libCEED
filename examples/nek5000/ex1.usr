@@ -540,8 +540,6 @@ c        tolerance check here
 
       maxit=iter
 
- 2000 format(i12,1x,'cggos/fluid: no iteration - rbnorm =', 2E13.4)
- 2010 format(i12,1x,'cggos/ mesh: no iteration - rbnorm =', 2E13.4)
  3000 format(i12,1x,'cggos/fluid: ',I6,5E13.4)
  3010 format(i12,1x,'cggos/ Mesh: ',I6,5E13.4)
  3001 format(2i6,' Unconverged cggos/Fluid: rbnorm =',2E13.6)
