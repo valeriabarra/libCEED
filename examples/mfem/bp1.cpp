@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
 #endif
   int order = 1;
   bool visualization = true;
+  bool use_ftc = false;
 
   mfem::OptionsParser args(argc, argv);
   args.AddOption(&ceed_spec, "-c", "-ceed", "Ceed specification.");
@@ -60,6 +61,9 @@ int main(int argc, char *argv[]) {
   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                  "--no-visualization",
                  "Enable or disable GLVis visualization.");
+  args.AddOption(&use_ftc, "-ftc", "--cudaftc", "-no-ftc",
+                 "--no-cudaftc",
+                 "Enable or disable CUDA FTC.");
   args.Parse();
   if (!args.Good()) {
     args.PrintUsage(std::cout);
@@ -111,7 +115,7 @@ int main(int argc, char *argv[]) {
 
   // 7. Construct a CeedMassOperator utilizing the 'ceed' device and using the
   //    'fespace' object to extract data needed by the Ceed objects.
-  CeedMassOperator mass(ceed, fespace);
+  CeedMassOperator mass(ceed, fespace, use_ftc);
 
   // 8. Solve the discrete system using the conjugate gradients (CG) method.
   mfem::CGSolver cg;

@@ -134,6 +134,11 @@ ifneq ($(wildcard $(OCCA_DIR)/lib/libocca.*),)
   $(libceed) : LDLIBS += -locca
   libceed.c += $(occa.c)
   $(occa.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I$(OCCA_DIR)/include
+ifneq (($wildcard $(FTC_DIR)/libftc.*),)
+  $(libceed) : LDFLAGS += -L$(FTC_DIR) -Wl,-rpath,$(abspath $(FTC_DIR)) -L$(shell dirname $(shell which nvcc))/../lib64 -lcuda -lcudart -lnvrtc
+  $(libceed) : LDLIBS += -lFTC
+  $(occa.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -DHAVE_FTC -I$(FTC_DIR)
+endif
 endif
 $(libceed) : $(libceed.c:%.c=$(OBJDIR)/%.o) | $$(@D)/.DIR
 	$(call quiet,CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS)

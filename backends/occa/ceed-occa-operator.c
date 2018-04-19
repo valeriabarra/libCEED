@@ -82,6 +82,9 @@ static int CeedOperatorApply_Occa(CeedOperator op, CeedVector qdata,
                                     nc, lmode, ustate, etmp,
                                     CEED_REQUEST_IMMEDIATE); CeedChk(ierr);
   }
+#ifdef HAVE_FTC
+  if (!qfd->useFTC) {
+#endif
   // We want to avoid Get/Restore
   ierr = CeedVectorGetArray(etmp, CEED_MEM_HOST, &Eu); CeedChk(ierr);
   // Fetching back data from device memory
@@ -116,6 +119,30 @@ static int CeedOperatorApply_Occa(CeedOperator op, CeedVector qdata,
                                   data->BEv,data->etmp); CeedChk(ierr);
   // *************************************************************************
   ierr = CeedVectorRestoreArray(etmp, &Eu); CeedChk(ierr);
+  ierr = CeedVectorRestoreArray(qdata, (CeedScalar**)&qd); CeedChk(ierr);
+#ifdef HAVE_FTC
+  }
+  else {
+    if (!qfd->ftcKernel) {
+      // Need to initialize the kernel
+      if (!strncmp(op->qf->focca+4, "MASS", 4)) {
+        ftcGetKernel(DoubleType, EVectorLevel, MassOperator,
+                     op->basis->P1d-1, op->basis->Q1d-1,
+                     MFEMOrdering, PartialAssembly, &qfd->ftcKernel);
+      }
+      else {
+        dbg("[CeedOperator][Create] NOT SUPPORTED"); CeedChk(1);
+      }
+    }
+    // Call it
+    dbg("[CeedOperator][Apply] FTC operator");
+    qfd->ftcKernel(occaMemoryPtr(((CeedVector_Occa *)etmp->data)->d_array),
+                   occaMemoryPtr(((CeedVector_Occa *)etmp->data)->d_array),
+                   occaMemoryPtr(((CeedVector_Occa *)qdata->data)->d_array),
+                   occaMemoryPtr(basis->interp1d),
+                   (unsigned long int) nelem);
+  }
+#endif
   // ***************************************************************************
   if (residual) {
     dbg("[CeedOperator][Apply] residual");
@@ -123,9 +150,11 @@ static int CeedOperatorApply_Occa(CeedOperator op, CeedVector qdata,
                                     nc, lmode, etmp, residual,
                                     CEED_REQUEST_IMMEDIATE); CeedChk(ierr);
     // Restore used pointer if one was provided ********************************
-    const CeedVector_Occa *data = residual->data;
-    if (data->used_pointer)
-      occaCopyMemToPtr(data->used_pointer,data->d_array,
+    dbg("[CeedOperator][Apply] Restore");
+    const CeedVector_Occa *residual_data = residual->data;
+    if (residual_data->used_pointer)
+      occaCopyMemToPtr(residual_data->used_pointer,
+                       residual_data->d_array,
                        residual->length*sizeof(CeedScalar),
                        NO_OFFSET, NO_PROPS);
   }
@@ -172,4 +201,3 @@ int CeedOperatorCreate_Occa(CeedOperator op) {
   op->data = data;
   return 0;
 }
-

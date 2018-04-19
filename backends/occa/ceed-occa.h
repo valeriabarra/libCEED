@@ -19,6 +19,10 @@
 #include <sys/stat.h>
 #include <ceed-impl.h>
 
+#ifdef HAVE_FTC
+#include "ftc.h"
+#endif
+
 // *****************************************************************************
 #define OCCA_PATH_MAX 4096
 
@@ -89,6 +93,10 @@ typedef struct {
   char *oklPath;
   const char *qFunctionName;
   occaKernel kQFunctionApply;
+#ifdef HAVE_FTC
+  bool useFTC;
+  ftcKernel ftcKernel;
+#endif
 } CeedQFunction_Occa;
 
 // *****************************************************************************

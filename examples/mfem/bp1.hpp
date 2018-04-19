@@ -158,7 +158,7 @@ class CeedMassOperator : public mfem::Operator {
 
  public:
   /// Constructor. Assumes @a fes is a scalar FE space.
-  CeedMassOperator(Ceed ceed, const mfem::FiniteElementSpace *fes)
+	CeedMassOperator(Ceed ceed, const mfem::FiniteElementSpace *fes, bool use_ftc)
     : Operator(fes->GetNDofs()),
       fes(fes) {
     mfem::Mesh *mesh = fes->GetMesh();
@@ -191,9 +191,16 @@ class CeedMassOperator : public mfem::Operator {
     CeedOperatorApply(build_oper, qdata, node_coords, NULL,
                       CEED_REQUEST_IMMEDIATE);
 
-    CeedQFunctionCreateInterior(ceed, 1, 1, sizeof(CeedScalar),
-                                CEED_EVAL_INTERP, CEED_EVAL_INTERP, f_apply_mass,
-                                __FILE__":f_apply_mass", &apply_qfunc);
+    if (!use_ftc) {
+	    CeedQFunctionCreateInterior(ceed, 1, 1, sizeof(CeedScalar),
+					CEED_EVAL_INTERP, CEED_EVAL_INTERP, f_apply_mass,
+					__FILE__":f_apply_mass", &apply_qfunc);
+    }
+    else {
+            CeedQFunctionCreateInterior(ceed, 1, 1, sizeof(CeedScalar),
+                                        CEED_EVAL_INTERP, CEED_EVAL_INTERP, f_apply_mass,
+                                        "FTC:MASS", &apply_qfunc);
+    }
     CeedOperatorCreate(ceed, restr, basis, apply_qfunc, NULL, NULL, &oper);
 
     CeedVectorCreate(ceed, fes->GetNDofs(), &u);

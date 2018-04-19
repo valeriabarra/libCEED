@@ -159,6 +159,9 @@ static int CeedInit_Occa(const char *resource, Ceed ceed) {
   ierr = CeedCalloc(occa_cache_dir_len+1,&data->occa_cache_dir); CeedChk(ierr);
   memcpy(data->occa_cache_dir,occa_cache_dir,occa_cache_dir_len+1);
   dbg("[CeedInit] occa_cache_dir: %s", data->occa_cache_dir);
+#ifdef HAVE_FTC
+  ftcInitialize();
+#endif
   return 0;
 }
 

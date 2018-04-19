@@ -138,8 +138,8 @@ static int CeedQFunctionApply_Occa(CeedQFunction qf, void *qdata, CeedInt Q,
   // ***************************************************************************
   if (cbytes>0) occaCopyMemToPtr(qf->ctx,data->d_c,cbytes,0,NO_PROPS);
   // ***************************************************************************
-  if (outmode==CEED_EVAL_NONE && !data->op)
-    occaCopyMemToPtr(qdata,d_q,qbytes,NO_OFFSET,NO_PROPS);
+  if (outmode==CEED_EVAL_NONE)
+    occaCopyMemToPtr(qdata,d_q,qbytes,e*Q*bytes,NO_PROPS);
   if (outmode==CEED_EVAL_INTERP)
     occaCopyMemToPtr(*v,d_v,vbytes,NO_OFFSET,NO_PROPS);
   assert(outmode==CEED_EVAL_NONE || outmode==CEED_EVAL_INTERP);
@@ -155,6 +155,9 @@ static int CeedQFunctionDestroy_Occa(CeedQFunction qf) {
   free(data->oklPath);
   dbg("[CeedQFunction][Destroy]");
   occaFree(data->kQFunctionApply);
+#ifdef HAVE_FTC
+  if (data->useFTC) ftcFreeKernel(data->ftcKernel);
+#endif
   if (data->ready) {
     if (!data->op) occaFree(data->d_q);
     occaFree(data->d_u);
@@ -183,6 +186,10 @@ int CeedQFunctionCreate_Occa(CeedQFunction qf) {
   data->e = 0;
   // Locate last ':' character in qf->focca ************************************
   dbg("[CeedQFunction][Create] focca: %s",qf->focca);
+#ifdef HAVE_FTC
+  data->useFTC = !strncmp(qf->focca, "FTC:", 4);
+  if (!data->useFTC) {
+#endif
   const char *last_colon = strrchr(qf->focca,':');
   const char *last_dot = strrchr(qf->focca,'.');
   if (!last_colon)
@@ -211,5 +218,11 @@ int CeedQFunctionCreate_Occa(CeedQFunction qf) {
   // free **********************************************************************
   ierr = CeedFree(&okl_base_name); CeedChk(ierr);
   ierr = CeedFree(&c_src_file); CeedChk(ierr);
+#ifdef HAVE_FTC
+  }
+  else {
+    data->ftcKernel = NULL;
+  }
+#endif
   return 0;
 }
