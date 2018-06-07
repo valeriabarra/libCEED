@@ -4,7 +4,11 @@ ulimit -c 0 # Do not dump core
 
 output=$(mktemp $1.XXXX)
 
+#ifndef BACKENDS 
 backends=(/cpu/self/ref /cpu/self/tmpl /cpu/occa /gpu/occa /omp/occa /ocl/occa /gpu/magma)
+#else
+backends=(${BACKENDS//,/})
+#endif
 printf "1..$[3*${#backends[@]}]\n";
 
 # for examples/ceed ex*, grep the code to fetch arguments from a TESTARGS line

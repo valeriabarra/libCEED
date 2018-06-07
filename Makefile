@@ -151,11 +151,13 @@ $(libceed) : LDFLAGS += $(if $(DARWIN), -install_name @rpath/$(notdir $(libceed)
 
 libceed.c += $(ref.c)
 libceed.c += $(template.c)
+BACKENDS=/cpu/self/ref /cpu/self/tmpl
 ifneq ($(wildcard $(OCCA_DIR)/lib/libocca.*),)
   $(libceed) : LDFLAGS += -L$(OCCA_DIR)/lib -Wl,-rpath,$(abspath $(OCCA_DIR)/lib)
   $(libceed) : LDLIBS += -locca
   libceed.c += $(occa.c)
   $(occa.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I$(OCCA_DIR)/include
+  export BACKENDS+= /cpu/occa /gpu/occa /omp/occa /ocl/occa
 endif
 ifneq ($(wildcard $(MAGMA_DIR)/lib/libmagma.*),)
   CUDA_LIB_DIR := $(wildcard $(foreach d,lib lib64,$(CUDA_DIR)/$d/libcudart.${SO_EXT}))
@@ -174,6 +176,7 @@ ifneq ($(wildcard $(MAGMA_DIR)/lib/libmagma.*),)
   libceed.cu += $(magma_allsrc.cu)
   $(magma_allsrc.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -DADD_ -I$(MAGMA_DIR)/include -I$(CUDA_DIR)/include
   $(magma_allsrc.cu:%.cu=$(OBJDIR)/%.o) : NVCCFLAGS += --compiler-options=-fPIC -DADD_ -I$(MAGMA_DIR)/include -I$(MAGMA_DIR)/magmablas -I$(MAGMA_DIR)/control -I$(CUDA_DIR)/include
+  export BACKENDS+= /gpu/magma
   endif
 endif
 
