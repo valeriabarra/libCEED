@@ -26,7 +26,6 @@ static int CeedOperatorDestroy_Occa(CeedOperator op) {
   int ierr = CeedVectorDestroy(&data->etmp); CeedChk(ierr);
   ierr = CeedVectorDestroy(&data->BEu); CeedChk(ierr);
   ierr = CeedVectorDestroy(&data->BEv); CeedChk(ierr);
-  ierr = CeedVectorDestroy(&data->qdata); CeedChk(ierr);
   ierr = CeedFree(&op->data); CeedChk(ierr);
   return 0;
 }
@@ -34,7 +33,7 @@ static int CeedOperatorDestroy_Occa(CeedOperator op) {
 // *****************************************************************************
 // * Apply CeedOperator to a vector
 // *****************************************************************************
-static int CeedOperatorApply_Occa(CeedOperator op, CeedVector qdata,
+static int CeedOperatorApply_Occa(CeedOperator op,
                                   CeedVector ustate,
                                   CeedVector residual, CeedRequest *request) {
   const Ceed ceed = op->ceed;
@@ -137,29 +136,7 @@ static int CeedOperatorApply_Occa(CeedOperator op, CeedVector qdata,
 }
 
 // *****************************************************************************
-// * CeedOperatorGetQData_Occa
-// *****************************************************************************
-static int CeedOperatorGetQData_Occa(CeedOperator op, CeedVector *qdata) {
-  const Ceed ceed = op->ceed;
-  dbg("[CeedOperator][GetQData]");
-  CeedOperator_Occa *data = op->data;
-  int ierr;
-  if (!data->qdata) {
-    dbg("[CeedOperator][GetQData] New");
-    CeedInt Q;
-    ierr = CeedBasisGetNumQuadraturePoints(op->basis, &Q); CeedChk(ierr);
-    dbg("[CeedOperator][GetQData] Q=%d",Q);
-    dbg("[CeedOperator][GetQData] nelem=%d",op->Erestrict->nelem);
-    dbg("[CeedOperator][GetQData] qdatasize=%d",op->qf->qdatasize);
-    const int n = op->Erestrict->nelem * Q * op->qf->qdatasize / sizeof(CeedScalar);
-    ierr = CeedVectorCreate(op->ceed,n,&data->qdata); CeedChk(ierr);
-  }
-  *qdata = data->qdata;
-  return 0;
-}
-
-// *****************************************************************************
-// * Create an operator from element restriction, basis, and QFunction
+// * Create an operator
 // *****************************************************************************
 int CeedOperatorCreate_Occa(CeedOperator op) {
   int ierr;
@@ -167,7 +144,6 @@ int CeedOperatorCreate_Occa(CeedOperator op) {
   CeedOperator_Occa *data;
   op->Destroy = CeedOperatorDestroy_Occa;
   op->Apply = CeedOperatorApply_Occa;
-  op->GetQData = CeedOperatorGetQData_Occa;
   dbg("[CeedOperator][Create]");
   ierr = CeedCalloc(1, &data); CeedChk(ierr);
   op->data = data;
