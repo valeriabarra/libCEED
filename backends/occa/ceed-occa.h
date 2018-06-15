@@ -76,10 +76,8 @@ typedef struct {
 typedef struct {
   CeedVector
   *evecs;   /// E-vectors needed to apply operator (input followed by outputs)
-  CeedScalar **edata;
+  CeedVector *qvecs; /// Vecs of data at quad points, basis applied on inputs
   CeedScalar **qdata; /// Inputs followed by outputs
-  CeedScalar
-  **qdata_alloc; /// Allocated quadrature data arrays (to be freed by us)
   CeedScalar **indata;
   CeedScalar **outdata;
   CeedInt    numein;
