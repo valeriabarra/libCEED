@@ -85,8 +85,8 @@ static int CeedQFunctionFillOp_Occa(occaMemory d_u,
 // * Q-functions: Apply, Destroy & Create
 // *****************************************************************************
 static int CeedQFunctionApply_Occa(CeedQFunction qf, CeedInt Q,
-                                  const CeedScalar *const *u,
-                                  CeedScalar *const *v) {
+                                   const CeedScalar *const *u,
+                                   CeedScalar *const *v) {
   //const Ceed ceed = qf->ceed;
   CeedQFunction_Occa *data = qf->data;
   Ceed_Occa *ceed_data = qf->ceed->data;

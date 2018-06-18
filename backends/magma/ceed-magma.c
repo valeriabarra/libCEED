@@ -334,7 +334,8 @@ static int CeedElemRestrictionApply_Magma(CeedElemRestriction r,
   int ierr;
   const CeedScalar *uu;
   CeedScalar *vv;
-  CeedInt nelem = r->nelem, elemsize = r->elemsize, ndof = r->ndof, ncomp=r->ncomp;
+  CeedInt nelem = r->nelem, elemsize = r->elemsize, ndof = r->ndof,
+          ncomp=r->ncomp;
   CeedInt esize = nelem * elemsize;
 
 #ifdef USE_MAGMA_BATCH2
@@ -734,11 +735,11 @@ static int CeedOperatorDestroy_Magma(CeedOperator op) {
   Setup infields or outfields
  */
 static int CeedOperatorSetupFields_Magma(struct CeedQFunctionField qfields[16],
-                                       struct CeedOperatorField ofields[16],
-                                       CeedVector *evecs, CeedScalar **qdata,
-                                       CeedScalar **qdata_alloc, CeedScalar **indata,
-                                       CeedInt starti, CeedInt starte,
-                                       CeedInt startq, CeedInt numfields, CeedInt Q) {
+    struct CeedOperatorField ofields[16],
+    CeedVector *evecs, CeedScalar **qdata,
+    CeedScalar **qdata_alloc, CeedScalar **indata,
+    CeedInt starti, CeedInt starte,
+    CeedInt startq, CeedInt numfields, CeedInt Q) {
   CeedInt dim, ierr, ie=starte, iq=startq, ncomp;
 
   // Loop over fields
@@ -796,8 +797,9 @@ static int CeedOperatorSetup_Magma(CeedOperator op) {
   // Count infield and outfield array sizes and evectors
   for (CeedInt i=0; i<qf->numinputfields; i++) {
     CeedEvalMode emode = qf->inputfields[i].emode;
-    opMagma->numqin += !!(emode & CEED_EVAL_INTERP) + !!(emode & CEED_EVAL_GRAD) + !!
-                     (emode & CEED_EVAL_WEIGHT);
+    opMagma->numqin += !!(emode & CEED_EVAL_INTERP) + !!(emode & CEED_EVAL_GRAD) +
+                       !!
+                       (emode & CEED_EVAL_WEIGHT);
     opMagma->numein +=
       !!op->inputfields[i].Erestrict; // Need E-vector when restriction exists
   }
@@ -808,7 +810,8 @@ static int CeedOperatorSetup_Magma(CeedOperator op) {
   }
 
   // Allocate
-  ierr = CeedCalloc(opMagma->numein + opMagma->numeout, &opMagma->evecs); CeedChk(ierr);
+  ierr = CeedCalloc(opMagma->numein + opMagma->numeout, &opMagma->evecs);
+  CeedChk(ierr);
   ierr = CeedCalloc(qf->numinputfields + qf->numoutputfields, &opMagma->edata);
   CeedChk(ierr);
 
@@ -823,15 +826,15 @@ static int CeedOperatorSetup_Magma(CeedOperator op) {
   // Set up infield and outfield pointer arrays
   // Infields
   ierr = CeedOperatorSetupFields_Magma(qf->inputfields, op->inputfields,
-                                     opMagma->evecs, opMagma->qdata, opMagma->qdata_alloc,
-                                     opMagma->indata, 0, 0, 0,
-                                     qf->numinputfields, Q); CeedChk(ierr);
+                                       opMagma->evecs, opMagma->qdata, opMagma->qdata_alloc,
+                                       opMagma->indata, 0, 0, 0,
+                                       qf->numinputfields, Q); CeedChk(ierr);
 
   // Outfields
   ierr = CeedOperatorSetupFields_Magma(qf->outputfields, op->outputfields,
-                                     opMagma->evecs, opMagma->qdata, opMagma->qdata_alloc,
-                                     opMagma->indata, qf->numinputfields, opMagma->numein,
-                                     opMagma->numqin, qf->numoutputfields, Q); CeedChk(ierr);
+                                       opMagma->evecs, opMagma->qdata, opMagma->qdata_alloc,
+                                       opMagma->indata, qf->numinputfields, opMagma->numein,
+                                       opMagma->numqin, qf->numoutputfields, Q); CeedChk(ierr);
 
   op->setupdone = 1;
 
@@ -839,7 +842,7 @@ static int CeedOperatorSetup_Magma(CeedOperator op) {
 }
 
 static int CeedOperatorApply_Magma(CeedOperator op, CeedVector invec,
-                                 CeedVector outvec, CeedRequest *request) {
+                                   CeedVector outvec, CeedRequest *request) {
   CeedOperator_Magma *opMagma = op->data;
   CeedInt Q = op->numqpoints, elemsize;
   int ierr;
@@ -956,7 +959,8 @@ static int CeedOperatorApply_Magma(CeedOperator op, CeedVector invec,
       }
     }
     // Q function
-    ierr = CeedQFunctionApply(op->qf, Q, (const CeedScalar * const*) opMagma->indata,
+    ierr = CeedQFunctionApply(op->qf, Q,
+                              (const CeedScalar * const*) opMagma->indata,
                               opMagma->outdata); CeedChk(ierr);
 
     // Output basis apply if needed
