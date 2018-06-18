@@ -208,7 +208,6 @@ static int CeedOperatorApply_Occa(CeedOperator op,
   int ierr;
   CeedQFunction qf = op->qf;
   CeedTransposeMode lmode = CEED_NOTRANSPOSE;
-  char *qd;
 
   // Setup *********************************************************************
   ierr = CeedOperatorSetup_Occa(op); CeedChk(ierr);
@@ -271,7 +270,7 @@ static int CeedOperatorApply_Occa(CeedOperator op,
 
   // Output Qvecs
   for (CeedInt i=0; i<qf->numoutputfields; i++) {
-    ierr = CeedVectorGetArray(qvecs[i], CEED_MEM_HOST, opocca->qdata[i]);
+    ierr = CeedVectorGetArray(qvecs[i], CEED_MEM_HOST, &opocca->qdata[i]);
     CeedChk(ierr);
     opocca->outdata[i] = opocca->qdata[i];
   }
@@ -300,7 +299,7 @@ static int CeedOperatorApply_Occa(CeedOperator op,
   // Output Restriction and Basis action
   for (CeedInt i=0,ieout=opocca->numein; i<qf->numoutputfields; i++) {
     // Restore Qvec
-    ierr = CeedVectorRestoreArray(qvecs[i], opocca->qdata[i]); CeedChk(ierr);
+    ierr = CeedVectorRestoreArray(qvecs[i], &opocca->qdata[i]); CeedChk(ierr);
     // Output basis apply if needed
     // Get emode
     CeedEvalMode emode = qf->outputfields[i].emode;
@@ -319,7 +318,7 @@ static int CeedOperatorApply_Occa(CeedOperator op,
     switch(emode) {
     case CEED_EVAL_NONE:
       ierr = CeedVectorSetArray(outvec, CEED_MEM_HOST, CEED_COPY_VALUES,
-                                &opocca->qdata[i]);
+                                opocca->qdata[i]);
       CeedChk(ierr);
       break;
     case CEED_EVAL_INTERP:
@@ -358,7 +357,7 @@ static int CeedOperatorApply_Occa(CeedOperator op,
 
   // Restore input arrays
   for (CeedInt i = 0; i < opocca->numqin; i++) {
-    ierr = CeedVectorRestoreArray(qvecs[i], op->qdata[i]); CeedChk(ierr);
+    ierr = CeedVectorRestoreArray(qvecs[i], &opocca->qdata[i]); CeedChk(ierr);
   }
 
 
