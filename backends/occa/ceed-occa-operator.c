@@ -266,25 +266,10 @@ static int CeedOperatorApply_Occa(CeedOperator op,
     }
   }
 
-  // Output Evecs
-  for (CeedInt i=0,ieout=opocca->numein; i<qf->numoutputfields; i++) {
-    // Restriction
-    if (op->outputfields[i].Erestrict) {
-      ierr = CeedVectorGetArray(opocca->evecs[ieout], CEED_MEM_HOST,
-                                &opocca->edata[i + qf->numinputfields]); CeedChk(ierr);
-      ieout++;
-    } else {
-      // No restriction
-      // Passive
-      if (op->inputfields[i].vec) {
-        ierr = CeedVectorGetArray(op->inputfields[i].vec, CEED_MEM_HOST,
-                                  &opocca->edata[i + qf->numinputfields]); CeedChk(ierr);
-      } else {
-        // Active
-        ierr = CeedVectorGetArray(residual, CEED_MEM_HOST,
-                                  &opocca->edata[i + qf->numinputfields]); CeedChk(ierr);
-      }
-    }
+  // Output Qvecs
+  for (CeedInt i=0; i<qf->numoutputfields; i++) {
+    ierr = CeedVectorGetArray(qvecs[i], CEED_MEM_HOST, opocca->qdata[i]); CeedChk(ierr);
+    opocca->outdata[i] = opocca->qdata[i];
   }
 
   // Output Qvecs
@@ -299,14 +284,8 @@ static int CeedOperatorApply_Occa(CeedOperator op,
 // Before the loop, set up all in/out data on GPU
   // Loop through elements
   for (CeedInt e=0; e<op->numelements; e++) {
-    // Output pointers
-    for (CeedInt i=0; i<qf->numoutputfields; i++) {
-      CeedEvalMode emode = qf->outputfields[i].emode;
-      if (emode == CEED_EVAL_NONE) {
-        CeedInt ncomp = qf->outputfields[i].ncomp;
-        opocca->outdata[i] = &opocca->edata[i + qf->numinputfields][e*Q*ncomp];
-      }
-    }
+    // Update pointers?
+
     // Q function
     ierr = CeedQFunctionApply(op->qf, Q, (const CeedScalar * const*) opocca->indata,
                               opocca->outdata); CeedChk(ierr);
@@ -316,13 +295,16 @@ static int CeedOperatorApply_Occa(CeedOperator op,
 
   // Output Restriction and Basis action
   for (CeedInt i=0,ieout=opocca->numein; i<qf->numoutputfields; i++) {
+    // Restore Qvec
+    ierr = CeedVectorRestoreArray(qvecs[i], opocca->qdata[i]); CeedChk(ierr);
     // Output basis apply if needed
     // Get emode
     CeedEvalMode emode = qf->outputfields[i].emode;
     // Basis action
     switch(emode) {
     case CEED_EVAL_NONE:
-      break; // No action
+        ierr = CeedVectorSetArray(op->ceed, 
+      break;
     case CEED_EVAL_INTERP:
       ierr = CeedBasisApplyElems_Occa(op->outputfields[i].basis, Q, CEED_TRANSPOSE,
                             CEED_EVAL_INTERP, opocca->outdata[i],
@@ -345,16 +327,12 @@ static int CeedOperatorApply_Occa(CeedOperator op,
     if (op->outputfields[i].Erestrict) {
       // Passive
       if (op->outputfields[i].vec) {
-        ierr = CeedVectorRestoreArray(opocca->evecs[ieout],
-                                      &opocca->edata[i + qf->numinputfields]); CeedChk(ierr);
         ierr = CeedElemRestrictionApply(op->outputfields[i].Erestrict, CEED_TRANSPOSE,
                                         lmode, opocca->evecs[ieout], op->outputfields[i].vec, request); CeedChk(ierr);
         ieout++;
       } else {
         // Active
-        ierr = CeedVectorRestoreArray(opocca->evecs[ieout],
-                                      &opocca->edata[i + qf->numinputfields]); CeedChk(ierr);
-        ierr = CeedElemRestrictionApply(op->outputfields[i].Erestrict, CEED_TRANSPOSE,
+       ierr = CeedElemRestrictionApply(op->outputfields[i].Erestrict, CEED_TRANSPOSE,
                                         lmode, opocca->evecs[ieout], residual, request); CeedChk(ierr);
         ieout++;
       }
@@ -371,6 +349,9 @@ static int CeedOperatorApply_Occa(CeedOperator op,
       }
     }
   }
+
+  // Restore input arrays
+  
 
   return 0;
 }
