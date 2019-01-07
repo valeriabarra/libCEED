@@ -644,7 +644,7 @@ int main(int argc, char **argv) {
   CeedScalar Rd         = Cp - Cv;  // J/kg K
   CeedScalar g          = 9.81;     // m/s^2
   CeedScalar lambda     = -2./3.;   // -
-  CeedScalar mu         = 75.;      // s/m^2
+  CeedScalar mu         = 75.;      // m^2/s (kinematic viscosity)
   CeedScalar k          = 26.38;    // W/m K
   CeedScalar ctxSetup[8] = {Theta0, ThetaC, P0, N, Cv, Cp, Rd, g};
   CeedQFunctionSetContext(qf_ics, &ctxSetup, sizeof ctxSetup);
