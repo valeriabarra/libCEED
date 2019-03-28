@@ -341,6 +341,7 @@ int CeedInit(const char *resource, Ceed *ceed) {
   // Set lookup table
   foffset foffsets[CEED_NUM_BACKEND_FUNCTIONS] = {
     {"CeedError",                  ceedoffsetof(Ceed, Error)},
+    {"CeedGetPreferredMemType",    ceedoffsetof(Ceed, GetPreferredMemType)},
     {"CeedDestroy",                ceedoffsetof(Ceed, Destroy)},
     {"CeedVecCreate",              ceedoffsetof(Ceed, VecCreate)},
     {"CeedElemRestrictionCreate",  ceedoffsetof(Ceed, ElemRestrictionCreate)},
@@ -435,6 +436,27 @@ int CeedSetDelegate(Ceed ceed, Ceed *delegate) {
 }
 
 /**
+  @brief Return Ceed perferred memory type
+
+  @param ceed           Ceed to get preferred memory type of
+  @param[out] delegate  Address to save preferred memory type to
+
+  @return An error code: 0 - success, otherwise - failure
+
+  @ref Basic
+**/
+int CeedGetPreferredMemType(Ceed ceed, CeedMemType *type) {
+  int ierr;
+  if (ceed->GetPreferredMemType) {
+    ierr = ceed->GetPreferredMemType(type); CeedChk(ierr);
+  } else {
+    *type = CEED_MEM_HOST;
+  }
+
+  return 0;
+}
+
+/**
   @brief Set a backend function
 
   @param ceed           Ceed for error handling
@@ -450,11 +472,11 @@ int CeedSetDelegate(Ceed ceed, Ceed *delegate) {
 int CeedSetBackendFunction(Ceed ceed,
                            const char *type, void *object,
                            const char *fname, int (*f)()) {
-  char lookupname[100];
-  strcpy(lookupname, "");
+  char lookupname[CEED_MAX_RESOURCE_LEN+1] = "";
 
   // Build lookup name
-  strcat(strcat(lookupname, type), fname);
+  strncat(lookupname, type, CEED_MAX_RESOURCE_LEN);
+  strncat(lookupname, fname, CEED_MAX_RESOURCE_LEN);
 
   // Find and use offset
   for (CeedInt i = 0; i < CEED_NUM_BACKEND_FUNCTIONS; i++) {

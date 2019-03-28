@@ -86,13 +86,13 @@ static int CreateRestriction(Ceed ceed, const CeedInt melem[3],
           for (CeedInt jj=0; jj<P; jj++) {
             for (CeedInt kk=0; kk<P; kk++) {
               if (0) { // This is the C-style (i,j,k) ordering that I prefer
-                idxp[(ii*P+jj)*P+kk] = (((i*(P-1)+ii)*mdof[1]
+                  idxp[(ii*P+jj)*P+kk] = (((i*(P-1)+ii)*mdof[1]
                                          + (j*(P-1)+jj))*mdof[2]
-                                        + (k*(P-1)+kk));
-              } else { // (k,j,i) ordering for consistency with MFEM example
-                idxp[ii+P*(jj+P*kk)] = (((i*(P-1)+ii)*mdof[1]
+                                         + (k*(P-1)+kk));
+                } else { // (k,j,i) ordering for consistency with MFEM example
+                  idxp[ii+P*(jj+P*kk)] = (((i*(P-1)+ii)*mdof[1]
                                          + (j*(P-1)+jj))*mdof[2]
-                                        + (k*(P-1)+kk));
+                                         + (k*(P-1)+kk));
               }
             }
           }
@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
   User user;
   char ceedresource[4096] = "/cpu/self";
   PetscFunctionList icsflist = NULL, qflist = NULL;
-  char problemtype[256] = "advection";
+  char problemtype[PETSC_MAX_PATH_LEN] = "advection";
   PetscInt degree, qextra, localNelem, lsize, outputfreq,
            steps, melem[3], mdof[3], p[3], irank[3], ldof[3], contsteps;
   PetscMPIInt size, rank;
@@ -358,7 +358,7 @@ int main(int argc, char **argv) {
   qextra = 2;
   ierr = PetscOptionsInt("-qextra", "Number of extra quadrature points",
                          NULL, qextra, &qextra, NULL); CHKERRQ(ierr);
-  PetscStrcpy(user->outputfolder, ".");
+  PetscStrncpy(user->outputfolder, ".", 2);
   ierr = PetscOptionsString("-of", "Output folder",
                             NULL, user->outputfolder, user->outputfolder,
                             sizeof(user->outputfolder), NULL); CHKERRQ(ierr);
@@ -646,8 +646,8 @@ int main(int argc, char **argv) {
   PetscFunctionListFind(icsflist, problemtype, &icsfp);
   if (!icsfp)
       return CeedError(ceed, 1, "Function not found in the list");
-  char str[256] = __FILE__":ICs";
-  strcat(str, problemtype);
+  char str[PETSC_MAX_PATH_LEN] = __FILE__":ICs";
+  PetscStrlcat(str, problemtype, PETSC_MAX_PATH_LEN);
   CeedQFunctionCreateInterior(ceed, 1,
                               (int(*)(void *, CeedInt, const CeedScalar *const *, CeedScalar *const *))icsfp,
                               str, &qf_ics);
@@ -660,8 +660,8 @@ int main(int argc, char **argv) {
   PetscFunctionListFind(qflist, problemtype, &fp);
   if (!fp)
       return CeedError(ceed, 1, "Function not found in the list");
-  strcpy(str, __FILE__":");
-  strcat(str, problemtype);
+  PetscStrncpy(str, __FILE__":", PETSC_MAX_PATH_LEN);
+  PetscStrlcat(str, problemtype, PETSC_MAX_PATH_LEN);
   CeedQFunctionCreateInterior(ceed, 1,
                               (int(*)(void *, CeedInt, const CeedScalar *const *, CeedScalar *const *))fp,
                               str, &qf);
