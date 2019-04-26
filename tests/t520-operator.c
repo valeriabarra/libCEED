@@ -16,14 +16,6 @@
 */
 
 static int setup(void *ctx, CeedInt Q, const CeedScalar *const *in,
-<<<<<<< HEAD
-                 CeedScalar *const *out);
-static int mass(void *ctx, CeedInt Q, const CeedScalar *const *in,
-                CeedScalar *const *out);
-
-static int setup(void *ctx, CeedInt Q, const CeedScalar *const *in,
-=======
->>>>>>> upstream/master
                  CeedScalar *const *out) {
   const CeedScalar *weight = in[0], *J = in[1];
   CeedScalar *rho = out[0];
@@ -87,11 +79,7 @@ int main(int argc, char **argv) {
   CeedVectorCreate(ceed, nqptsTet, &qdataTet);
   CeedVectorCreate(ceed, nqptsHex, &qdataHex);
 
-<<<<<<< HEAD
-  // Tet Elements
-=======
   // Set up Tet Elements
->>>>>>> upstream/master
   for (CeedInt i=0; i<nelemTet/2; i++) {
     col = i % nxTet;
     row = i / nxTet;
@@ -161,11 +149,7 @@ int main(int argc, char **argv) {
   CeedOperatorSetField(op_massTet, "v", ErestrictuTet, CEED_NOTRANSPOSE,
                        buTet, CEED_VECTOR_ACTIVE);
 
-<<<<<<< HEAD
-  // Hex Elements
-=======
   // Set up Hex Elements
->>>>>>> upstream/master
   for (CeedInt i=0; i<nelemHex; i++) {
     col = i % nxHex;
     row = i / nxHex;
@@ -220,15 +204,6 @@ int main(int argc, char **argv) {
                        buHex, CEED_VECTOR_ACTIVE);
   CeedOperatorSetField(op_massHex, "v", ErestrictuHex, CEED_NOTRANSPOSE,
                        buHex, CEED_VECTOR_ACTIVE);
-
-<<<<<<< HEAD
-  // Composite Operators
-  CeedCompositeOperatorCreate(ceed, &op_setup);
-  CeedCompositeOperatorAddSub(op_setup, op_setupTet);
-  CeedCompositeOperatorAddSub(op_setup, op_setupHex);
-
-  CeedCompositeOperatorCreate(ceed, &op_mass);
-=======
   // Set up Composite Operators
   // -- Create
   CeedCompositeOperatorCreate(ceed, &op_setup);
@@ -239,7 +214,6 @@ int main(int argc, char **argv) {
   // -- Create
   CeedCompositeOperatorCreate(ceed, &op_mass);
   // -- Add SubOperators
->>>>>>> upstream/master
   CeedCompositeOperatorAddSub(op_mass, op_massTet);
   CeedCompositeOperatorAddSub(op_mass, op_massHex);
 
