@@ -88,13 +88,13 @@ static int CreateRestriction(Ceed ceed, const CeedInt melem[3],
           for (CeedInt jj=0; jj<P; jj++) {
             for (CeedInt kk=0; kk<P; kk++) {
               if (0) { // This is the C-style (i,j,k) ordering that I prefer
-                idxp[(ii*P+jj)*P+kk] = (((i*(P-1)+ii)*mdof[1]
-                                       + (j*(P-1)+jj))*mdof[2]
-                                       + (k*(P-1)+kk));
-              } else { // (k,j,i) ordering for consistency with MFEM example
-                idxp[ii+P*(jj+P*kk)] = (((i*(P-1)+ii)*mdof[1]
-                                       + (j*(P-1)+jj))*mdof[2]
-                                       + (k*(P-1)+kk));
+                  idxp[(ii*P+jj)*P+kk] = (((i*(P-1)+ii)*mdof[1]
+                                         + (j*(P-1)+jj))*mdof[2]
+                                         + (k*(P-1)+kk));
+                } else { // (k,j,i) ordering for consistency with MFEM example
+                  idxp[ii+P*(jj+P*kk)] = (((i*(P-1)+ii)*mdof[1]
+                                         + (j*(P-1)+jj))*mdof[2]
+                                         + (k*(P-1)+kk));
               }
             }
           }
@@ -230,16 +230,16 @@ static PetscErrorCode RHS_NS(TS ts, PetscReal t, Vec Q, Vec G, void *userData) {
 
   // Global-to-global
   // G on the boundary = BC
-  ierr = VecScatterBegin(user->gtogD, user->BC, G, INSERT_VALUES, SCATTER_FORWARD);
-  CHKERRQ(ierr);
-  ierr = VecScatterEnd(user->gtogD, user->BC, G, INSERT_VALUES, SCATTER_FORWARD);
-  CHKERRQ(ierr);
+  ierr = VecScatterBegin(user->gtogD, user->BC, G, INSERT_VALUES,
+                         SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(user->gtogD, user->BC, G, INSERT_VALUES,
+                       SCATTER_FORWARD); CHKERRQ(ierr);
 
   // Local-to-global
-  ierr = VecScatterBegin(user->ltog0, user->Gloc, G, ADD_VALUES, SCATTER_FORWARD);
-  CHKERRQ(ierr);
-  ierr = VecScatterEnd(user->ltog0, user->Gloc, G, ADD_VALUES, SCATTER_FORWARD);
-  CHKERRQ(ierr);
+  ierr = VecScatterBegin(user->ltog0, user->Gloc, G, ADD_VALUES,
+                         SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(user->ltog0, user->Gloc, G, ADD_VALUES,
+                       SCATTER_FORWARD); CHKERRQ(ierr);
 
   // Inverse of the lumped mass matrix
   ierr = VecPointwiseMult(G,G,user->M); // M is Minv
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
   User user;
   char ceedresource[4096] = "/cpu/self";
   PetscFunctionList icsflist = NULL, qflist = NULL;
-  char problemtype[256] = "advection";
+  char problemtype[PETSC_MAX_PATH_LEN] = "advection";
   PetscInt degree, qextra, localNelem, lsize, outputfreq,
            steps, melem[3], mdof[3], p[3], irank[3], ldof[3], contsteps;
   PetscMPIInt size, rank;
@@ -393,40 +393,40 @@ int main(int argc, char **argv) {
   PetscOptionsFList("-problem", "Problem to solve", NULL, icsflist,
                     problemtype, problemtype, sizeof problemtype, NULL);
   ierr = PetscOptionsScalar("-theta0", "Reference potential temperature",
-                         NULL, theta0, &theta0, NULL); CHKERRQ(ierr);
+                            NULL, theta0, &theta0, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-thetaC", "Perturbation of potential temperature",
-                         NULL, thetaC, &thetaC, NULL); CHKERRQ(ierr);
+                            NULL, thetaC, &thetaC, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-P0", "Atmospheric pressure",
-                         NULL, P0, &P0, NULL); CHKERRQ(ierr);
+                            NULL, P0, &P0, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-N", "Brunt-Vaisala frequency",
-                         NULL, N, &N, NULL); CHKERRQ(ierr);
+                            NULL, N, &N, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-cv", "Heat capacity at constant volume",
-                         NULL, cv, &cv, NULL); CHKERRQ(ierr);
+                            NULL, cv, &cv, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-cp", "Heat capacity at constant pressure",
-                         NULL, cp, &cp, NULL); CHKERRQ(ierr);
+                            NULL, cp, &cp, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-g", "Gravitational acceleration",
-                         NULL, g, &g, NULL); CHKERRQ(ierr);
+                            NULL, g, &g, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-lambda", "Stokes hypothesis second viscosity coefficient",
-                         NULL, lambda, &lambda, NULL); CHKERRQ(ierr);
-  ierr = PetscOptionsScalar("-mu", "Shear (dynamic) viscosity coefficient",
-                         NULL, mu, &mu, NULL); CHKERRQ(ierr);
+                            NULL, lambda, &lambda, NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsScalar("-mu", "Shear dynamic viscosity coefficient",
+                            NULL, mu, &mu, NULL); CHKERRQ(ierr);
   ierr = PetscOptionsScalar("-k", "Thermal conductivity",
-                         NULL, k, &k, NULL); CHKERRQ(ierr);
+                            NULL, k, &k, NULL); CHKERRQ(ierr);
   lx = 8000.;
   ierr = PetscOptionsScalar("-lx", "Length scale in x direction",
-                         NULL, lx, &lx, NULL); CHKERRQ(ierr);
+                            NULL, lx, &lx, NULL); CHKERRQ(ierr);
   lx = fabs(lx);
   ly = 8000.;
   ierr = PetscOptionsScalar("-ly", "Length scale in y direction",
-                         NULL, ly, &ly, NULL); CHKERRQ(ierr);
+                            NULL, ly, &ly, NULL); CHKERRQ(ierr);
   ly = fabs(ly);
   lz = 4000.;
   ierr = PetscOptionsScalar("-lz", "Length scale in z direction",
-                         NULL, lz, &lz, NULL); CHKERRQ(ierr);
+                            NULL, lz, &lz, NULL); CHKERRQ(ierr);
   lz = fabs(lz);
   rc = PetscMin(PetscMin(lx,ly),lz)/4.;
   ierr = PetscOptionsScalar("-rc", "Characteristic radius of thermal bubble or actuator disc",
-                         NULL, rc, &rc, NULL); CHKERRQ(ierr);
+                            NULL, rc, &rc, NULL); CHKERRQ(ierr);
   rc = fabs(rc);
   outputfreq = 10;
   ierr = PetscOptionsInt("-output_freq", "Frequency of output, in number of steps",
@@ -440,22 +440,21 @@ int main(int argc, char **argv) {
   qextra = 2;
   ierr = PetscOptionsInt("-qextra", "Number of extra quadrature points",
                          NULL, qextra, &qextra, NULL); CHKERRQ(ierr);
-  PetscStrcpy(user->outputfolder, "./");
+  PetscStrncpy(user->outputfolder, ".", 2);
   ierr = PetscOptionsString("-of", "Output folder",
                             NULL, user->outputfolder, user->outputfolder,
                             sizeof(user->outputfolder), NULL); CHKERRQ(ierr);
-  PetscStrcat(user->outputfolder, "/ns-%03D.vts");
   resx = 1000.;
   ierr = PetscOptionsScalar("-resx","Resolution in x",
-                         NULL, resx, &resx, NULL); CHKERRQ(ierr);
+                            NULL, resx, &resx, NULL); CHKERRQ(ierr);
   resx = fabs(resx);
   resy = 1000.;
   ierr = PetscOptionsScalar("-resy","Resolution in y",
-                         NULL, resy, &resy, NULL); CHKERRQ(ierr);
+                            NULL, resy, &resy, NULL); CHKERRQ(ierr);
   resy = fabs(resy);
   resz = 1000.;
   ierr = PetscOptionsScalar("-resz","Resolution in z",
-                         NULL, resz, &resz, NULL); CHKERRQ(ierr);
+                            NULL, resz, &resz, NULL); CHKERRQ(ierr);
   resz = fabs(resz);
   eps = 2*PetscMin(PetscMin(lx,ly),lz);
   ierr = PetscOptionsScalar("-eps", "Width of regularization function for actuator disc",
@@ -763,8 +762,8 @@ int main(int argc, char **argv) {
   PetscFunctionListFind(icsflist, problemtype, &icsfp);
   if (!icsfp)
       return CeedError(ceed, 1, "Function not found in the list");
-  char str[256] = __FILE__":ICs";
-  strcat(str, problemtype);
+  char str[PETSC_MAX_PATH_LEN] = __FILE__":ICs";
+  PetscStrlcat(str, problemtype, PETSC_MAX_PATH_LEN);
   CeedQFunctionCreateInterior(ceed, 1,
                               (int(*)(void *, CeedInt, const CeedScalar *const *, CeedScalar *const *))icsfp,
                               str, &qf_ics);
@@ -777,8 +776,8 @@ int main(int argc, char **argv) {
   PetscFunctionListFind(qflist, problemtype, &fp);
   if (!fp)
       return CeedError(ceed, 1, "Function not found in the list");
-  strcpy(str, __FILE__":");
-  strcat(str, problemtype);
+  PetscStrncpy(str, __FILE__":", PETSC_MAX_PATH_LEN);
+  PetscStrlcat(str, problemtype, PETSC_MAX_PATH_LEN);
   CeedQFunctionCreateInterior(ceed, 1,
                               (int(*)(void *, CeedInt, const CeedScalar *const *, CeedScalar *const *))fp,
                               str, &qf);
