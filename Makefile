@@ -112,7 +112,7 @@ SO_EXT := $(if $(DARWIN),dylib,so)
 ceed.pc := $(LIBDIR)/pkgconfig/ceed.pc
 libceed := $(LIBDIR)/libceed.$(SO_EXT)
 libceed.c := $(wildcard interface/ceed*.c)
-BACKENDS_BUILTIN := /cpu/self/ref/serial /cpu/self/ref/blocked /cpu/self/tmpl
+BACKENDS_BUILTIN := /cpu/self/ref/serial /cpu/self/ref/blocked /cpu/self/opt/serial /cpu/self/opt/blocked /cpu/self/tmpl
 BACKENDS := $(BACKENDS_BUILTIN)
 
 # Tests
@@ -139,17 +139,21 @@ petscexamples  := $(petscexamples.c:examples/petsc/%.c=$(OBJDIR)/petsc-%)
 navierstokesexample.c := $(sort $(wildcard examples/navier-stokes/*.c))
 navierstokesexample  := $(navierstokesexample.c:examples/navier-stokes/%.c=$(OBJDIR)/navier-stokes-%)
 
-# backends/[ref, template, blocked, avx, occa, magma]
-ref.c      := $(sort $(wildcard backends/ref/*.c))
-template.c := $(sort $(wildcard backends/template/*.c))
-cuda.c     := $(sort $(wildcard backends/cuda/*.c))
-cuda.cu    := $(sort $(wildcard backends/cuda/*.cu))
-cuda-reg.c := $(sort $(wildcard backends/cuda-reg/*.c))
-cuda-reg.cu:= $(sort $(wildcard backends/cuda-reg/*.cu))
-blocked.c  := $(sort $(wildcard backends/blocked/*.c))
-avx.c      := $(sort $(wildcard backends/avx/*.c))
-xsmm.c     := $(sort $(wildcard backends/xsmm/*.c))
-occa.c     := $(sort $(wildcard backends/occa/*.c))
+# backends/[ref, blocked, template, memcheck, opt, avx, occa, magma]
+ref.c          := $(sort $(wildcard backends/ref/*.c))
+blocked.c      := $(sort $(wildcard backends/blocked/*.c))
+template.c     := $(sort $(wildcard backends/template/*.c))
+ceedmemcheck.c := $(sort $(wildcard backends/memcheck/*.c))
+opt.c          := $(sort $(wildcard backends/opt/*.c))
+avx.c          := $(sort $(wildcard backends/avx/*.c))
+xsmm.c         := $(sort $(wildcard backends/xsmm/*.c))
+cuda.c         := $(sort $(wildcard backends/cuda/*.c))
+cuda.cu        := $(sort $(wildcard backends/cuda/*.cu))
+cuda-reg.c     := $(sort $(wildcard backends/cuda-reg/*.c))
+cuda-reg.cu    := $(sort $(wildcard backends/cuda-reg/*.cu))
+cuda-shared.c  := $(sort $(wildcard backends/cuda-shared/*.c))
+cuda-shared.cu := $(sort $(wildcard backends/cuda-shared/*.cu))
+occa.c         := $(sort $(wildcard backends/occa/*.c))
 magma_preprocessor := python backends/magma/gccm.py
 magma_pre_src  := $(filter-out %_tmp.c, $(wildcard backends/magma/ceed-*.c))
 magma_dsrc     := $(wildcard backends/magma/magma_d*.c)
@@ -234,6 +238,13 @@ $(libceed) : LDFLAGS += $(if $(DARWIN), -install_name @rpath/$(notdir $(libceed)
 libceed.c += $(ref.c)
 libceed.c += $(template.c)
 libceed.c += $(blocked.c)
+libceed.c += $(opt.c)
+
+# Memcheck Backend
+ifneq ($(shell which valgrind 2> /dev/null),)
+  libceed.c += $(ceedmemcheck.c)
+  BACKENDS += /cpu/self/ref/memcheck
+endif
 
 # AVX Backed
 AVX_STATUS = Disabled
@@ -271,13 +282,13 @@ endif
 # Cuda Backend
 CUDA_LIB_DIR := $(wildcard $(foreach d,lib lib64,$(CUDA_DIR)/$d/libcudart.${SO_EXT}))
 CUDA_LIB_DIR := $(patsubst %/,%,$(dir $(firstword $(CUDA_LIB_DIR))))
-CUDA_BACKENDS = /gpu/cuda/ref /gpu/cuda/reg
+CUDA_BACKENDS = /gpu/cuda/ref /gpu/cuda/reg /gpu/cuda/shared
 ifneq ($(CUDA_LIB_DIR),)
   $(libceed) : CFLAGS += -I$(CUDA_DIR)/include
   $(libceed) : LDFLAGS += -L$(CUDA_LIB_DIR) -Wl,-rpath,$(abspath $(CUDA_LIB_DIR))
   $(libceed) : LDLIBS += -lcudart -lnvrtc -lcuda
-  libceed.c  += $(cuda.c) $(cuda-reg.c)
-  libceed.cu += $(cuda.cu) $(cuda-reg.cu)
+  libceed.c  += $(cuda.c) $(cuda-reg.c) $(cuda-shared.c)
+  libceed.cu += $(cuda.cu) $(cuda-reg.cu) $(cuda-shared.cu)
   BACKENDS += $(CUDA_BACKENDS)
 endif
 
