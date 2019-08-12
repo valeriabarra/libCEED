@@ -14,8 +14,7 @@
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
 #include <ceed-backend.h>
-#include "../include/ceed.h"
-#include <ceed-impl.h>
+#include <ceed.h>
 #include <nvrtc.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -26,7 +25,7 @@
 do { \
   nvrtcResult result = x; \
   if (result != NVRTC_SUCCESS) \
-    return CeedError((ceed), result, nvrtcGetErrorString(result)); \
+    return CeedError((ceed), (int)result, nvrtcGetErrorString(result)); \
 } while (0)
 
 #define CeedChk_Cu(ceed, x) \
@@ -35,7 +34,7 @@ do { \
   if (result != CUDA_SUCCESS) { \
     const char *msg; \
     cuGetErrorName(result, &msg); \
-    return CeedError((ceed), result, msg); \
+    return CeedError((ceed), (int)result, msg); \
   } \
 } while (0)
 
@@ -89,6 +88,16 @@ typedef struct {
 } CeedBasis_Cuda;
 
 typedef struct {
+  CUmodule module;
+  CUfunction interp;
+  CUfunction grad;
+  CUfunction weight;
+  CeedScalar *d_interp;
+  CeedScalar *d_grad;
+  CeedScalar *d_qweight;
+} CeedBasisNonTensor_Cuda;
+
+typedef struct {
   CeedVector
   *evecs;   /// E-vectors needed to apply operator (input followed by outputs)
   CeedScalar **edata;
@@ -107,14 +116,31 @@ static inline CeedInt CeedDivUpInt(CeedInt numer, CeedInt denom) {
   return (numer + denom - 1) / denom;
 }
 
-CEED_INTERN int compile(Ceed ceed, const char *source, CUmodule *module,
-                        const CeedInt numopts, ...);
+CEED_INTERN int CeedCompileCuda(Ceed ceed, const char *source, CUmodule *module,
+                                const CeedInt numopts, ...);
 
-CEED_INTERN int get_kernel(Ceed ceed, CUmodule module, const char *name,
-                           CUfunction *kernel);
+CEED_INTERN int CeedGetKernelCuda(Ceed ceed, CUmodule module, const char *name,
+                                  CUfunction *kernel);
 
-CEED_INTERN int run_kernel(Ceed ceed, CUfunction kernel, const int gridSize,
-                           const int blockSize, void **args);
+CEED_INTERN int CeedRunKernelCuda(Ceed ceed, CUfunction kernel,
+                                  const int gridSize,
+                                  const int blockSize, void **args);
+
+CEED_INTERN int CeedRunKernelDimCuda(Ceed ceed, CUfunction kernel,
+                                     const int gridSize,
+                                     const int blockSizeX, const int blockSizeY,
+                                     const int blockSizeZ, void **args);
+
+CEED_INTERN int CeedRunKernelDimSharedCuda(Ceed ceed, CUfunction kernel, const int gridSize,
+                                           const int blockSizeX, const int blockSizeY,
+                                           const int blockSizeZ, const int sharedMemSize,
+                                           void **args);
+
+CEED_INTERN int run_kernel_dim_shared(Ceed ceed, CUfunction kernel,
+                                      const int gridSize,
+                                      const int blockSizeX, const int blockSizeY,
+                                      const int blockSizeZ, const int sharedMemSize,
+                                      void **args);
 
 CEED_INTERN int CeedVectorCreate_Cuda(CeedInt n, CeedVector vec);
 

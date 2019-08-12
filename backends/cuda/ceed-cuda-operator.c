@@ -14,7 +14,7 @@
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
 
-#include <ceed-impl.h>
+#include <ceed-backend.h>
 #include "ceed-cuda.h"
 #include <string.h>
 
@@ -391,5 +391,5 @@ int CeedCompositeOperatorCreate_Cuda(CeedOperator op) {
   int ierr;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);
-  return CeedError(ceed, 1, "Backend does not support composite operators");
+  return CeedError(ceed, 1, "Backend does not implement composite operators");
 }

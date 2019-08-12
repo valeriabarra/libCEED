@@ -118,9 +118,15 @@ CEED_EXTERN int CeedErrorImpl(Ceed, const char *, int, const char *, int,
 ///
 /// @ingroup Ceed
 /// @sa CeedSetErrorHandler()
-#define CeedError(ceed, ecode, ...)                                     \
-  CeedErrorImpl((ceed), __FILE__, __LINE__, __func__, (ecode), __VA_ARGS__)
-
+#if defined(__clang__)
+  // Use nonstandard ternary to convince the compiler/clang-tidy that this
+  // function never returns zero.
+#  define CeedError(ceed, ecode, ...)                                     \
+  (CeedErrorImpl((ceed), __FILE__, __LINE__, __func__, (ecode), __VA_ARGS__) ?: (ecode))
+#else
+#  define CeedError(ceed, ecode, ...)                                     \
+  CeedErrorImpl((ceed), __FILE__, __LINE__, __func__, (ecode), __VA_ARGS__) ?: (ecode)
+#endif
 /// Specify memory type
 ///
 /// Many Ceed interfaces take or return pointers to memory.  This enum is used to
@@ -207,9 +213,19 @@ CEED_EXTERN int CeedElemRestrictionCreateBlocked(Ceed ceed, CeedInt nelem,
     CeedInt elemsize, CeedInt blksize, CeedInt ndof, CeedInt ncomp,
     CeedMemType mtype,
     CeedCopyMode cmode, const CeedInt *indices, CeedElemRestriction *rstr);
+CEED_EXTERN int CeedElemRestrictionCreateVector(CeedElemRestriction rstr,
+    CeedVector *lvec, CeedVector *evec);
 CEED_EXTERN int CeedElemRestrictionApply(CeedElemRestriction rstr,
     CeedTransposeMode tmode, CeedTransposeMode lmode, CeedVector u,
     CeedVector ru, CeedRequest *request);
+CEED_EXTERN int CeedElemRestrictionApplyBlock(CeedElemRestriction rstr,
+    CeedInt block, CeedTransposeMode tmode, CeedTransposeMode lmode,
+    CeedVector u, CeedVector ru, CeedRequest *request);
+CEED_EXTERN int CeedElemRestrictionGetMultiplicity(CeedElemRestriction rstr,
+    CeedVector mult);
+CEED_EXTERN int CeedElemRestrictionCreateVector(CeedElemRestriction rstr,
+    CeedVector *lvec, CeedVector *evec);
+CEED_EXTERN int CeedElemRestrictionView(CeedElemRestriction rstr, FILE *stream);
 CEED_EXTERN int CeedElemRestrictionDestroy(CeedElemRestriction *rstr);
 
 // The formalism here is that we have the structure
@@ -289,8 +305,8 @@ CEED_EXTERN int CeedGaussQuadrature(CeedInt Q, CeedScalar *qref1d,
                                     CeedScalar *qweight1d);
 CEED_EXTERN int CeedLobattoQuadrature(CeedInt Q, CeedScalar *qref1d,
                                       CeedScalar *qweight1d);
-CEED_EXTERN int CeedQRFactorization(CeedScalar *mat, CeedScalar *tau, CeedInt m,
-                                    CeedInt n);
+CEED_EXTERN int CeedQRFactorization(Ceed ceed, CeedScalar *mat, CeedScalar *tau,
+                                    CeedInt m, CeedInt n);
 
 /// Handle for the object describing the user CeedQFunction
 ///

@@ -20,7 +20,7 @@ def get_source(test):
     elif test.startswith('mfem-'):
         return os.path.join('examples', 'mfem', test[5:] + '.cpp')
     elif test.startswith('nek-'):
-        return os.path.join('examples', 'nek5000', test[4:] + '.usr')
+        return os.path.join('examples', 'nek', 'bps', test[4:] + '.usr')
     elif test.startswith('ex'):
         return os.path.join('examples', 'ceed', test + '.c')
 
@@ -64,6 +64,8 @@ def run(test, backends):
                 case.add_skipped_info('occa mode not supported {} {}'.format(test, ceed_resource))
             elif 'Backend does not implement' in proc.stderr:
                 case.add_skipped_info('not implemented {} {}'.format(test, ceed_resource))
+            elif 'Can only provide to HOST memory' in proc.stderr:
+                case.add_skipped_info('device memory not supported {} {}'.format(test, ceed_resource))
 
         if not case.is_skipped():
             if test[:4] in 't103 t105 t106'.split():
