@@ -57,7 +57,7 @@
       parameter(nqpts=nelem*q)
       integer indx(nelem*p)
       real*8 arrx(d*ndofs)
-      integer*8 voffset
+      integer*8 voffset,xoffset
 
       real*8 qref(d*q)
       real*8 qweight(q)
@@ -122,7 +122,7 @@
      &__FILE__&
      &//':setup'//char(0),qf_setup,err)
       call ceedqfunctionaddinput(qf_setup,'_weight',1,ceed_eval_weight,err)
-      call ceedqfunctionaddinput(qf_setup,'x',d,ceed_eval_grad,err)
+      call ceedqfunctionaddinput(qf_setup,'x',d*d,ceed_eval_grad,err)
       call ceedqfunctionaddoutput(qf_setup,'rho',1,ceed_eval_none,err)
 
       call ceedqfunctioncreateinterior(ceed,1,mass,&
@@ -136,7 +136,8 @@
       call ceedoperatorcreate(ceed,qf_mass,ceed_null,ceed_null,op_mass,err)
 
       call ceedvectorcreate(ceed,d*ndofs,x,err)
-      call ceedvectorsetarray(x,ceed_mem_host,ceed_use_pointer,arrx,err)
+      xoffset=0
+      call ceedvectorsetarray(x,ceed_mem_host,ceed_use_pointer,arrx,xoffset,err)
       call ceedvectorcreate(ceed,nqpts,qdata,err)
 
       call ceedoperatorsetfield(op_setup,'_weight',erestrictxi,&
@@ -165,7 +166,9 @@
         total=total+hv(voffset+i)
       enddo
       if (abs(total-1.)>1.0d-10) then
+! LCOV_EXCL_START
         write(*,*) 'Computed Area: ',total,' != True Area: 1.0'
+! LCOV_EXCL_STOP
       endif
       call ceedvectorrestorearrayread(v,hv,voffset,err)
 

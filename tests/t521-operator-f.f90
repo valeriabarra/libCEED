@@ -66,7 +66,7 @@
       parameter(nqpts=nqptstet+nqptshex)
       integer indxtet(nelemtet*ptet),indxhex(nelemhex*phex*phex)
       real*8 arrx(d*ndofs)
-      integer*8 voffset
+      integer*8 voffset,xoffset
 
       real*8 qref(d*qtet)
       real*8 qweight(qtet)
@@ -93,7 +93,8 @@
       enddo
 
       call ceedvectorcreate(ceed,d*ndofs,x,err)
-      call ceedvectorsetarray(x,ceed_mem_host,ceed_use_pointer,arrx,err)
+      xoffset=0
+      call ceedvectorsetarray(x,ceed_mem_host,ceed_use_pointer,arrx,xoffset,err)
 
 ! Qdata Vectors
       call ceedvectorcreate(ceed,nqptstet,qdatatet,err)
@@ -144,7 +145,7 @@
      &__FILE__&
      &//':setup'//char(0),qf_setuptet,err)
       call ceedqfunctionaddinput(qf_setuptet,'_weight',1,ceed_eval_weight,err)
-      call ceedqfunctionaddinput(qf_setuptet,'dx',d,ceed_eval_grad,err)
+      call ceedqfunctionaddinput(qf_setuptet,'dx',d*d,ceed_eval_grad,err)
       call ceedqfunctionaddoutput(qf_setuptet,'rho',1,ceed_eval_none,err)
 
       call ceedqfunctioncreateinterior(ceed,1,mass,&
@@ -208,7 +209,7 @@
      &__FILE__&
      &//':setup'//char(0),qf_setuphex,err)
       call ceedqfunctionaddinput(qf_setuphex,'_weight',1,ceed_eval_weight,err)
-      call ceedqfunctionaddinput(qf_setuphex,'dx',d,ceed_eval_grad,err)
+      call ceedqfunctionaddinput(qf_setuphex,'dx',d*d,ceed_eval_grad,err)
       call ceedqfunctionaddoutput(qf_setuphex,'rho',1,ceed_eval_none,err)
 
       call ceedqfunctioncreateinterior(ceed,1,mass,&
@@ -264,7 +265,9 @@
         total=total+hv(voffset+i)
       enddo
       if (abs(total-1.)>1.0d-10) then
+! LCOV_EXCL_START
         write(*,*) 'Computed Area: ',total,' != True Area: 1.0'
+! LCOV_EXCL_STOP
       endif
       call ceedvectorrestorearrayread(v,hv,voffset,err)
 

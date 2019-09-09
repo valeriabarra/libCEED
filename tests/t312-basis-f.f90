@@ -32,7 +32,7 @@
       real*8 wweights(q)
       real*8 val,diff
       real*8 x1,x2
-      integer*8 offset1,offset2
+      integer*8 ioffset,offset1,offset2
 
       integer b
 
@@ -58,7 +58,9 @@
       enddo
 
       call ceedvectorcreate(ceed,p,input,err)
-      call ceedvectorsetarray(input,ceed_mem_host,ceed_use_pointer,iinput,err)
+      ioffset=0
+      call ceedvectorsetarray(input,ceed_mem_host,ceed_use_pointer,iinput,&
+     & ioffset,err)
       call ceedvectorcreate(ceed,q,output,err)
       call ceedvectorsetvalue(output,0.d0,err)
       call ceedvectorcreate(ceed,q,weights,err)
@@ -80,7 +82,9 @@
 
       diff=val-17.d0/24.d0
       if (abs(diff)>1.0d-10) then
+! LCOV_EXCL_START
         write(*,'(A,I1,A,F12.8,A,F12.8)')'[',i,'] ',val,' != ',17.d0/24.d0
+! LCOV_EXCL_STOP
       endif
 
       call ceedvectordestroy(input,err)

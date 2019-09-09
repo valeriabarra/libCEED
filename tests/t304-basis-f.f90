@@ -46,7 +46,7 @@
       real*8 sum1
       real*8 sum2
       integer dimxqdimn
-      integer*8 offset1,offset2,offset3
+      integer*8 uoffset,xoffset,offset1,offset2,offset3
 
       character arg*32
 
@@ -72,7 +72,8 @@
         enddo
 
         call ceedvectorcreate(ceed,xdim*dimn,x,err)
-        call ceedvectorsetarray(x,ceed_mem_host,ceed_use_pointer,xx,err)
+        xoffset=0
+        call ceedvectorsetarray(x,ceed_mem_host,ceed_use_pointer,xx,xoffset,err)
         call ceedvectorcreate(ceed,pdimn*dimn,xq,err)
         call ceedvectorsetvalue(xq,0.d0,err)
         call ceedvectorcreate(ceed,pdimn,u,err)
@@ -95,7 +96,8 @@
           call eval(dimn,xxx,uu(i))
         enddo
         call ceedvectorrestorearrayread(xq,xxq,offset1,err)
-        call ceedvectorsetarray(u,ceed_mem_host,ceed_use_pointer,uu,err)
+        uoffset=0
+        call ceedvectorsetarray(u,ceed_mem_host,ceed_use_pointer,uu,uoffset,err)
 
         call ceedbasiscreatetensorh1lagrange(ceed,dimn,1,p,q,ceed_gauss,bug,err)
 
@@ -117,8 +119,10 @@
         call ceedvectorrestorearrayread(u,uu,offset2,err)
         call ceedvectorrestorearrayread(uq,uuq,offset3,err)
         if(abs(sum1-sum2) > 1.0D-10) then
+! LCOV_EXCL_START
           write(*,'(A,I1,A,F12.6,A,F12.6)')'[',dimn,'] Error: ',sum1,  ' != ',&
      &     sum2
+! LCOV_EXCL_STOP
         endif
 
         call ceedvectordestroy(x,err)

@@ -22,6 +22,10 @@ Available runtime options are:
 | :----------------------- | :--------------------------------------------------|
 | `-ceed`                  | CEED resource specifier                            |
 | `-problem`               | Problem to solve (`advection` or `density_current`)|
+| `-meter`                 | 1 meter in scaled length units                     |
+| `-second`                | 1 second in scaled time units                      |
+| `-kilogram`              | 1 kilogram in scaled mass units                    |
+| `-Kelvin`                | 1 Kelvin in scaled temperature units               |
 | `-theta0`                | Reference potential temperature                    |
 | `-thetaC`                | Perturbation of potential temperature              |
 | `-P0`                    | Atmospheric pressure                               |
@@ -92,7 +96,10 @@ Energy Density:
 ## Density Current
 
 This problem solves the full compressible Navier-Stokes equations, using
-operator composition and design of coupled solvers in the context of atmospheric modeling.
+operator composition and design of coupled solvers in the context of atmospheric
+modeling. This problem uses the formulation given in Semi-Implicit Formulations
+of the Navier-Stokes Equations: Application to Nonhydrostatic Atmospheric Modeling,
+Giraldo, Restelli, and Lauter (2010).
 
 The 3D compressible Navier-Stokes equations are formulated in conservation form with state
 variables of density, momentum density, and total energy density.
