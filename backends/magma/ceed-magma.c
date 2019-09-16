@@ -430,8 +430,9 @@ magma_template<<e=0:nelem, d=0:ncomp, i=0:elemsize>>
 }
 
 int CeedElemRestrictionApplyBlock_Magma(CeedElemRestriction r,
-    CeedInt block, CeedTransposeMode tmode, CeedTransposeMode lmode,
-    CeedVector u, CeedVector v, CeedRequest *request) {
+                                        CeedInt block, CeedTransposeMode tmode,
+                                        CeedTransposeMode lmode, CeedVector u,
+                                        CeedVector v, CeedRequest *request) {
   int ierr;
   Ceed ceed;
   ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
@@ -1200,7 +1201,7 @@ static int CeedInit_Magma(const char *resource, Ceed ceed) {
   if (ierr) return CeedError(ceed, 1, "error in magma_init(): %d\n", ierr);
   //magma_print_environment();
 
-  ceed->VecCreate = CeedVectorCreate_Magma;
+  ceed->VectorCreate = CeedVectorCreate_Magma;
   ceed->BasisCreateTensorH1 = CeedBasisCreateTensorH1_Magma;
   ceed->BasisCreateH1 = CeedBasisCreateH1_Magma;
   ceed->ElemRestrictionCreate = CeedElemRestrictionCreate_Magma;

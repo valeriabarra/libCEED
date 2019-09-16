@@ -13,8 +13,10 @@ int main(int argc, char **argv) {
   CeedElemRestriction r;
 
   CeedInit(argv[1], &ceed);
+
   CeedVectorCreate(ceed, ne+1, &x);
-  for (CeedInt i=0; i<ne+1; i++) a[i] = 10 + i;
+  for (CeedInt i=0; i<ne+1; i++)
+    a[i] = 10 + i;
   CeedVectorSetArray(x, CEED_MEM_HOST, CEED_USE_POINTER, a);
 
   for (CeedInt i=0; i<ne; i++) {
@@ -28,15 +30,16 @@ int main(int argc, char **argv) {
 
   // NoTranspose
   CeedElemRestrictionApplyBlock(r, 1, CEED_NOTRANSPOSE, CEED_NOTRANSPOSE, x, y,
-                           CEED_REQUEST_IMMEDIATE);
+                                CEED_REQUEST_IMMEDIATE);
   CeedVectorView(y, "%12.8f", stdout);
 
   // Transpose
   CeedVectorGetArray(x, CEED_MEM_HOST, (CeedScalar **)&a);
-  for (CeedInt i=0; i<ne+1; i++) a[i] = 0;
+  for (CeedInt i=0; i<ne+1; i++)
+    a[i] = 0;
   CeedVectorRestoreArray(x, (CeedScalar **)&a);
   CeedElemRestrictionApplyBlock(r, 1, CEED_TRANSPOSE, CEED_NOTRANSPOSE, y, x,
-                           CEED_REQUEST_IMMEDIATE);
+                                CEED_REQUEST_IMMEDIATE);
   CeedVectorView(x, "%12.8f", stdout);
 
   CeedVectorDestroy(&x);
