@@ -18,11 +18,11 @@ int main(int argc, char **argv) {
   CeedInit(argv[1], &ceed);
 
   CeedQFunctionCreateInterior(ceed, 1, setup, setup_loc, &qf_setup);
-  CeedQFunctionAddInput(qf_setup, "w", 1, CEED_EVAL_INTERP);
-  CeedQFunctionAddOutput(qf_setup, "qdata", 1, CEED_EVAL_INTERP);
+  CeedQFunctionAddInput(qf_setup, "w", 1, CEED_EVAL_WEIGHT);
+  CeedQFunctionAddOutput(qf_setup, "qdata", 1, CEED_EVAL_NONE);
 
   CeedQFunctionCreateInterior(ceed, 1, mass, mass_loc, &qf_mass);
-  CeedQFunctionAddInput(qf_mass, "qdata", 1, CEED_EVAL_INTERP);
+  CeedQFunctionAddInput(qf_mass, "qdata", 1, CEED_EVAL_NONE);
   CeedQFunctionAddInput(qf_mass, "u", 1, CEED_EVAL_INTERP);
   CeedQFunctionAddOutput(qf_mass, "v", 1, CEED_EVAL_INTERP);
 
@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
   }
 
   CeedVectorCreate(ceed, Q, &W);
-  CeedVectorSetArray(W, CEED_MEM_HOST, CEED_USE_POINTER, (CeedScalar *)&w);
+  CeedVectorSetArray(W, CEED_MEM_HOST, CEED_USE_POINTER, w);
   CeedVectorCreate(ceed, Q, &U);
-  CeedVectorSetArray(U, CEED_MEM_HOST, CEED_USE_POINTER, (CeedScalar *)&u);
+  CeedVectorSetArray(U, CEED_MEM_HOST, CEED_USE_POINTER, u);
   CeedVectorCreate(ceed, Q, &V);
   CeedVectorSetValue(V, 0);
   CeedVectorCreate(ceed, Q, &Qdata);
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     if (v[i] != vv[i])
       // LCOV_EXCL_START
       printf("[%d] v %f != vv %f\n",i, v[i], vv[i]);
-      // LCOV_EXCL_STOP
+  // LCOV_EXCL_STOP
   CeedVectorRestoreArrayRead(V, &vv);
 
   CeedVectorDestroy(&W);

@@ -1,41 +1,77 @@
-## PETSc + libCEED Examples
+## libCEED + PETSc Examples
 
-## CEED bakeoff problems - bps
+### CEED bakeoff problems - bpsraw
 
 This code solves the CEED bakeoff problems on a structured grid generated and
 referenced using only low-level communication primitives.
 
-To build, run `make bps`.
+To build, run `make bpsraw`
 
-To run, `./bps -ceed [ceed-resource] -problem bp[1-6] -degree [degree]`.
+To run, `./bpsraw -ceed [ceed-resource] -problem bp[1-6] -degree [degree]`
 
 In addition to the common arguments, the following arguments may be set:
 
 - `-local`             - Target number of locally owned DoFs per process
-- `-degree`            - Polynomial degree of tensor product basis
 
-## CEED bakeoff problems with DMPlex - bpsdmplex
+### CEED bakeoff problems with DMPlex - bps
 
 This code solves the CEED bakeoff problems on a unstructured grid using DMPlex.
 This example requires a PETSc version later than 3.11.3.
 
-To build, run `make bpsdmplex`.
+To build, run `make bps`
 
-To run, `./bpsdmplex -ceed [ceed-resource] -problem bp[1-6] -petscspace_degree [degree]`.
+To run, `./bps -ceed [ceed-resource] -problem bp[1-6] -degree [degree]`
 
 In addition to the common arguments, the following arguments may be set:
 
 - `-mesh`              - Read mesh from file
 - `-cells`             - Number of cells per dimension
-- `-petscspace_degree` - Polynomial degree of tensor product basis (Mandatory)
-- `-enforce_bc`        - Enforce essential BCs
 
-## Command line arguments
+### CEED bakeoff problems with DMPlex and PCMG - multigrid
 
-The following arguments can be specified for both examples:
+This code solves the CEED bakeoff problems on a unstructured grid using DMPlex
+with p-multigrid implemented in PCMG. This example requires a PETSc version later than 3.11.3.
+
+To build, run `make multigrid`
+
+To run, `./multigrid -ceed [ceed-resource] -problem bp[1-6] -degree [degree]`
+
+In addition to the common arguments, the following arguments may be set:
+
+- `-mesh`              - Read mesh from file
+- `-cells`             - Number of cells per dimension
+
+### Command line arguments
+
+The following arguments can be specified for all of the above examples:
 
 - `-ceed`              - CEED resource specifier
 - `-problem`           - CEED benchmark problem to solve
+- `-degree`            - Polynomial degree of tensor product basis
 - `-qextra`            - Number of extra quadrature points
 - `-test`              - Testing mode (do not print unless error is large)
 - `-benchmark`         - Benchmarking mode (prints benchmark statistics)
+
+### libCEED example to compute surface area using DMPlex - area
+
+This example uses the mass matrix to compute the surface area of a cube or a discrete cubed-sphere, defined via DMPlex.
+
+To build, run `make area`
+
+To run, `./area -problem cube -ceed [ceed-resource] -petscspace_degree [degree]`
+
+or
+
+`./area -problem sphere -ceed [ceed-resource] -petscspace_degree [degree]`
+
+#### Command line arguments
+
+The following arguments can be specified for the area example:
+
+- `-ceed`              - CEED resource specifier
+- `-problem`           - Problem to solve, either 'cube' or 'sphere'
+- `-petscspace_degree` - Polynomial degree of tensor product basis
+- `-qextra`            - Number of extra quadrature points
+- `-test`              - Testing mode (do not print unless error is large)
+- `-mesh`              - Read mesh from file
+

@@ -8,6 +8,7 @@ build/*
 *.DIR
 doc/html
 ceed.pc
+config.mk
 
 # Mac specific
 .DS_Store
@@ -21,3 +22,10 @@ ceed.pc
 
 # Debugging
 vgcore*
+
+# Python
+dist
+*egg*
+.pytest_cache
+*cffi.so
+*cffi.dylib

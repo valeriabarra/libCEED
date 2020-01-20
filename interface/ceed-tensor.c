@@ -26,9 +26,10 @@
 /**
   @brief Create a CeedTensorContract object for a CeedBasis
 
-  @param ceed       A Ceed object where the CeedTensorContract will be created
-  @param contract   Address of the variable where the newly created
-                      CeedTensorContract will be stored.
+  @param ceed          A Ceed object where the CeedTensorContract will be created
+  @param basis         CeedBasis for which the tensor contraction will be used
+  @param[out] contract Address of the variable where the newly created
+                         CeedTensorContract will be stored.
 
   @return An error code: 0 - success, otherwise - failure
 
@@ -44,8 +45,9 @@ int CeedTensorContractCreate(Ceed ceed, CeedBasis basis,
     CeedChk(ierr);
 
     if (!delegate)
-      return CeedError(ceed, 1,
-                       "Backend does not support TensorContractCreate");
+      // LCOV_EXCL_START
+      return CeedError(ceed, 1, "Backend does not support TensorContractCreate");
+    // LCOV_EXCL_STOP
 
     ierr = CeedTensorContractCreate(delegate, basis, contract);
     CeedChk(ierr);
@@ -109,7 +111,6 @@ int CeedTensorContractApply(CeedTensorContract contract, CeedInt A, CeedInt B,
 **/
 int CeedTensorContractGetCeed(CeedTensorContract contract, Ceed *ceed) {
   *ceed = contract->ceed;
-
   return 0;
 };
 
@@ -123,7 +124,7 @@ int CeedTensorContractGetCeed(CeedTensorContract contract, Ceed *ceed) {
 
   @ref Advanced
 **/
-int CeedTensorContractGetData(CeedTensorContract contract, void* *data) {
+int CeedTensorContractGetData(CeedTensorContract contract, void **data) {
   *data = contract->data;
   return 0;
 }
@@ -138,7 +139,7 @@ int CeedTensorContractGetData(CeedTensorContract contract, void* *data) {
 
   @ref Advanced
 **/
-int CeedTensorContractSetData(CeedTensorContract contract, void* *data) {
+int CeedTensorContractSetData(CeedTensorContract contract, void **data) {
   contract->data = *data;
   return 0;
 }
@@ -155,7 +156,8 @@ int CeedTensorContractSetData(CeedTensorContract contract, void* *data) {
 int CeedTensorContractDestroy(CeedTensorContract *contract) {
   int ierr;
 
-  if (!*contract || --(*contract)->refcount > 0) return 0;
+  if (!*contract || --(*contract)->refcount > 0)
+    return 0;
   if ((*contract)->Destroy) {
     ierr = (*contract)->Destroy(*contract); CeedChk(ierr);
   }

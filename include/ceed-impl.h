@@ -23,13 +23,6 @@
 #include <ceed-backend.h>
 #include <stdbool.h>
 
-#define CEED_INTERN CEED_EXTERN __attribute__((visibility ("hidden")))
-
-#define CEED_MAX_RESOURCE_LEN 1024
-#define CEED_ALIGN 64
-
-#define CEED_COMPOSITE_MAX 16
-
 // Lookup table field for backend functions
 typedef struct {
   const char *fname;
@@ -43,10 +36,13 @@ typedef struct {
 } objdelegate;
 
 struct Ceed_private {
+  const char *resource;
   Ceed delegate;
   Ceed parent;
   objdelegate *objdelegates;
   int objdelegatecount;
+  Ceed opfallbackceed, opfallbackparent;
+  const char *opfallbackresource;
   int (*Error)(Ceed, const char *, int, const char *, int, const char *,
                va_list);
   int (*GetPreferredMemType)(CeedMemType *);
@@ -125,7 +121,13 @@ struct CeedBasis_private {
   CeedScalar *qweight1d; /* array of length Q1d holding the quadrature weights on
                             the reference element */
   CeedScalar
+  *interp;    /* row-major matrix of shape [Q, P] expressing the values of
+                            nodal basis functions at quadrature points */
+  CeedScalar
   *interp1d;  /* row-major matrix of shape [Q1d, P1d] expressing the values of
+                            nodal basis functions at quadrature points */
+  CeedScalar
+  *grad;      /* row-major matrix of shape [dim*Q, P] matrix expressing derivatives of
                             nodal basis functions at quadrature points */
   CeedScalar
   *grad1d;    /* row-major matrix of shape [Q1d, P1d] matrix expressing derivatives of
@@ -160,8 +162,10 @@ struct CeedQFunction_private {
   CeedQFunctionField *outputfields;
   CeedInt numinputfields, numoutputfields;
   CeedQFunctionUser function;
-  const char *focca;
+  const char *sourcepath;
+  const char *qfname;
   bool fortranstatus;
+  bool identity;
   void *ctx;      /* user context for function */
   size_t ctxsize; /* size of user context; may be used to copy to a device */
   void *data;     /* backend data */
@@ -199,8 +203,17 @@ struct CeedOperatorField_private {
 
 struct CeedOperator_private {
   Ceed ceed;
+  CeedOperator opfallback;
+  CeedQFunction qffallback;
   int refcount;
+  int (*AssembleLinearQFunction)(CeedOperator, CeedVector *,
+                                 CeedElemRestriction *, CeedRequest *);
+  int (*AssembleLinearDiagonal)(CeedOperator, CeedVector *, CeedRequest *);
+  int (*CreateFDMElementInverse)(CeedOperator, CeedOperator *, CeedRequest *);
   int (*Apply)(CeedOperator, CeedVector, CeedVector, CeedRequest *);
+  int (*ApplyComposite)(CeedOperator, CeedVector, CeedVector, CeedRequest *);
+  int (*ApplyAdd)(CeedOperator, CeedVector, CeedVector, CeedRequest *);
+  int (*ApplyAddComposite)(CeedOperator, CeedVector, CeedVector, CeedRequest *);
   int (*ApplyJacobian)(CeedOperator, CeedVector, CeedVector, CeedVector,
                        CeedVector, CeedRequest *);
   int (*Destroy)(CeedOperator);
@@ -214,6 +227,7 @@ struct CeedOperator_private {
   CeedQFunction dqfT;
   bool setupdone;
   bool composite;
+  bool hasrestriction;
   CeedOperator *suboperators;
   CeedInt numsub;
   void *data;

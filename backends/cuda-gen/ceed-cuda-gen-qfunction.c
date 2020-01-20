@@ -60,7 +60,7 @@ static int loadCudaFunction(CeedQFunction qf, char *c_src_file) {
   char *buffer;
 
   fp = fopen ( cuda_file, "rb" );
-  if( !fp ) CeedError(ceed, 1, "Couldn't open the Cuda file for the QFunction.");
+  if (!fp) CeedError(ceed, 1, "Couldn't open the Cuda file for the QFunction.");
 
   fseek( fp, 0L, SEEK_END);
   lSize = ftell( fp );
@@ -70,7 +70,7 @@ static int loadCudaFunction(CeedQFunction qf, char *c_src_file) {
   ierr = CeedCalloc( lSize+1, &buffer ); CeedChk(ierr);
 
   /* copy the file into the buffer */
-  if( 1!=fread( buffer, lSize, 1, fp) ) {
+  if (1 != fread( buffer, lSize, 1, fp) ) {
     fclose(fp);
     CeedFree(&buffer);
     CeedError(ceed, 1, "Couldn't read the Cuda file for the QFunction.");
@@ -105,13 +105,13 @@ int CeedQFunctionCreate_Cuda_gen(CeedQFunction qf) {
   ierr = CeedQFunctionGetContextSize(qf, &ctxsize); CeedChk(ierr);
   ierr = cudaMalloc(&data->d_c, ctxsize); CeedChk_Cu(ceed, ierr);
 
-  char *focca;
-  ierr = CeedQFunctionGetFOCCA(qf, &focca); CeedChk(ierr);
-  const char *funname = strrchr(focca, ':') + 1;
+  char *source;
+  ierr = CeedQFunctionGetSourcePath(qf, &source); CeedChk(ierr);
+  const char *funname = strrchr(source, ':') + 1;
   data->qFunctionName = (char *)funname;
-  const int filenamelen = funname - focca;
+  const int filenamelen = funname - source;
   char filename[filenamelen];
-  memcpy(filename, focca, filenamelen - 1);
+  memcpy(filename, source, filenamelen - 1);
   filename[filenamelen - 1] = '\0';
   ierr = loadCudaFunction(qf, filename); CeedChk(ierr);
 

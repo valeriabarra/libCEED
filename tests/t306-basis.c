@@ -1,24 +1,30 @@
 /// @file
-/// Test QR Factorization
-/// \test Test QR Factorization
+/// Test GetNumNodes and GetNumQuadraturePoints for basis
+/// \test Test GetNumNodes and GetNumQuadraturePoints for basis
 #include <ceed.h>
 
 int main(int argc, char **argv) {
   Ceed ceed;
-  CeedScalar qr[12] = {1, -1, 4, 1, 4, -2, 1, 4, 2, 1, -1, 0};
-  CeedScalar tau[3];
+  CeedBasis b;
 
   CeedInit(argv[1], &ceed);
 
-  CeedQRFactorization(ceed, qr, tau, 4, 3);
-  for (int i=0; i<12; i++) {
-    if (qr[i] <= 1E-14 && qr[i] >= -1E-14) qr[i] = 0;
-    fprintf(stdout, "%12.8f\n", qr[i]);
-  }
-  for (int i=0; i<3; i++) {
-    if (tau[i] <= 1E-14 && qr[i] >= -1E-14) tau[i] = 0;
-    fprintf(stdout, "%12.8f\n", tau[i]);
-  }
+  CeedBasisCreateTensorH1Lagrange(ceed, 3, 1, 4, 5, CEED_GAUSS_LOBATTO, &b);
+
+  CeedInt P, Q;
+  CeedBasisGetNumNodes(b, &P);
+  CeedBasisGetNumQuadraturePoints(b, &Q);
+
+  if (P != 64)
+    // LCOV_EXCL_START
+    printf("%d != 64\n", P);
+  // LCOV_EXCL_STOP
+  if (Q != 125)
+    // LCOV_EXCL_START
+    printf("%d != 125\n", Q);
+  // LCOV_EXCL_STOP
+
+  CeedBasisDestroy(&b);
   CeedDestroy(&ceed);
   return 0;
 }

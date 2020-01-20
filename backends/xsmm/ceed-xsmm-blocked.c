@@ -16,12 +16,17 @@
 
 #include "ceed-xsmm.h"
 
+//------------------------------------------------------------------------------
+// Backend Init
+//------------------------------------------------------------------------------
 static int CeedInit_Xsmm_Blocked(const char *resource, Ceed ceed) {
   int ierr;
   if (strcmp(resource, "/cpu/self") && strcmp(resource, "/cpu/self/xsmm")
       && strcmp(resource, "/cpu/self/xsmm/blocked"))
+    // LCOV_EXCL_START
     return CeedError(ceed, 1, "blocked libXSMM backend cannot use resource: %s",
                      resource);
+  // LCOV_EXCL_STOP
 
   // Create refrence CEED that implementation will be dispatched
   //   through unless overridden
@@ -35,7 +40,11 @@ static int CeedInit_Xsmm_Blocked(const char *resource, Ceed ceed) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Backend Register
+//------------------------------------------------------------------------------
 __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/self/xsmm/blocked", CeedInit_Xsmm_Blocked, 20);
 }
+//------------------------------------------------------------------------------

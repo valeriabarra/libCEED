@@ -16,11 +16,16 @@
 
 #include "ceed-avx.h"
 
+//------------------------------------------------------------------------------
+// Backend Init
+//------------------------------------------------------------------------------
 static int CeedInit_Avx(const char *resource, Ceed ceed) {
   int ierr;
   if (strcmp(resource, "/cpu/self") && strcmp(resource, "/cpu/self/avx")
       && strcmp(resource, "/cpu/self/avx/blocked"))
+    // LCOV_EXCL_START
     return CeedError(ceed, 1, "AVX backend cannot use resource: %s", resource);
+  // LCOV_EXCL_STOP
 
   // Create refrence CEED that implementation will be dispatched
   //   through unless overridden
@@ -33,7 +38,11 @@ static int CeedInit_Avx(const char *resource, Ceed ceed) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Backend Register
+//------------------------------------------------------------------------------
 __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/self/avx/blocked", CeedInit_Avx, 30);
 }
+//------------------------------------------------------------------------------

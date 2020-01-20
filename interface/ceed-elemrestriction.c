@@ -35,13 +35,14 @@
                       used by other CeedElemRestriction objects describing
                       different types of elements.
   @param ncomp      Number of field components per interpolation node
+                      (1 for scalar fields)
   @param mtype      Memory type of the @a indices array, see CeedMemType
   @param cmode      Copy mode for the @a indices array, see CeedCopyMode
   @param indices    Array of shape [@a nelem, @a elemsize]. Row i holds the
                       ordered list of the indices (into the input CeedVector)
                       for the unknowns corresponding to element i, where
-                      0 <= i < @a nelements. All indices must be in the range
-                      [0, @a nnodes].
+                      0 <= i < @a nelem. All indices must be in the range
+                      [0, @a nnodes - 1].
   @param[out] rstr  Address of the variable where the newly created
                       CeedElemRestriction will be stored
 
@@ -61,7 +62,9 @@ int CeedElemRestrictionCreate(Ceed ceed, CeedInt nelem, CeedInt elemsize,
     CeedChk(ierr);
 
     if (!delegate)
+      // LCOV_EXCL_START
       return CeedError(ceed, 1, "Backend does not support ElemRestrictionCreate");
+    // LCOV_EXCL_STOP
 
     ierr = CeedElemRestrictionCreate(delegate, nelem, elemsize,
                                      nnodes, ncomp, mtype, cmode,
@@ -95,6 +98,7 @@ int CeedElemRestrictionCreate(Ceed ceed, CeedInt nelem, CeedInt elemsize,
                       used by other CeedElemRestriction objects describing
                       different types of elements.
   @param ncomp      Number of field components per interpolation node
+                      (1 for scalar fields)
   @param rstr       Address of the variable where the newly created
                       CeedElemRestriction will be stored
 
@@ -114,8 +118,9 @@ int CeedElemRestrictionCreateIdentity(Ceed ceed, CeedInt nelem,
     CeedChk(ierr);
 
     if (!delegate)
-      return CeedError(ceed, 1,
-                       "Backend does not support ElemRestrictionCreate");
+      // LCOV_EXCL_START
+      return CeedError(ceed, 1, "Backend does not support ElemRestrictionCreate");
+    // LCOV_EXCL_STOP
 
     ierr = CeedElemRestrictionCreateIdentity(delegate, nelem, elemsize,
            nnodes, ncomp, rstr); CeedChk(ierr);
@@ -144,7 +149,7 @@ int CeedElemRestrictionCreateIdentity(Ceed ceed, CeedInt nelem,
   @param indices    Array of shape [@a nelem, @a elemsize]. Row i holds the
                       ordered list of the indices (into the input CeedVector)
                       for the unknowns corresponding to element i, where
-                      0 <= i < @a nelements. All indices must be in the range
+                      0 <= i < @a nelem. All indices must be in the range
                       [0, @a nnodes).
   @param blkindices Array of permuted and padded indices of
                       shape [@a nblk, @a elemsize, @a blksize].
@@ -158,8 +163,8 @@ int CeedElemRestrictionCreateIdentity(Ceed ceed, CeedInt nelem,
   @ref Utility
 **/
 int CeedPermutePadIndices(const CeedInt *indices, CeedInt *blkindices,
-                          CeedInt nblk, CeedInt nelem,
-                          CeedInt blksize, CeedInt elemsize) {
+                          CeedInt nblk, CeedInt nelem, CeedInt blksize,
+                          CeedInt elemsize) {
   for (CeedInt e = 0; e < nblk*blksize; e+=blksize)
     for (int j = 0; j < blksize; j++)
       for (int k = 0; k < elemsize; k++)
@@ -180,13 +185,14 @@ int CeedPermutePadIndices(const CeedInt *indices, CeedInt *blkindices,
                       @a nnodes * @a ncomp. This size may include data
                       used by other CeedElemRestriction objects describing
                       different types of elements.
-  @param ncomp      Number of components stored at each node
+  @param ncomp      Number of field components per interpolation node
+                      (1 for scalar fields)
   @param mtype      Memory type of the @a indices array, see CeedMemType
   @param cmode      Copy mode for the @a indices array, see CeedCopyMode
   @param indices    Array of shape [@a nelem, @a elemsize]. Row i holds the
                       ordered list of the indices (into the input CeedVector)
                       for the unknowns corresponding to element i, where
-                      0 <= i < @a nelements. All indices must be in the range
+                      0 <= i < @a nelem. All indices must be in the range
                       [0, @a nnodes). The backend will permute and pad this
                       array to the desired ordering for the blocksize, which is
                       typically given by the backend. The default reordering is
@@ -213,8 +219,10 @@ int CeedElemRestrictionCreateBlocked(Ceed ceed, CeedInt nelem, CeedInt elemsize,
     CeedChk(ierr);
 
     if (!delegate)
-      return CeedError(ceed, 1,
-                       "Backend does not support ElemRestrictionCreateBlocked");
+      // LCOV_EXCL_START
+      return CeedError(ceed, 1, "Backend does not support "
+                       "ElemRestrictionCreateBlocked");
+    // LCOV_EXCL_STOP
 
     ierr = CeedElemRestrictionCreateBlocked(delegate, nelem, elemsize,
                                             blksize, nnodes, ncomp, mtype, cmode,
@@ -243,11 +251,11 @@ int CeedElemRestrictionCreateBlocked(Ceed ceed, CeedInt nelem, CeedInt elemsize,
   (*rstr)->nblk = nblk;
   (*rstr)->blksize = blksize;
   ierr = ceed->ElemRestrictionCreateBlocked(CEED_MEM_HOST, CEED_OWN_POINTER,
-         (const CeedInt *) blkindices, *rstr);
-  CeedChk(ierr);
+         (const CeedInt *) blkindices, *rstr); CeedChk(ierr);
 
-  if (cmode == CEED_OWN_POINTER)
+  if (cmode == CEED_OWN_POINTER) {
     ierr = CeedFree(&indices); CeedChk(ierr);
+  }
 
   return 0;
 }
@@ -279,15 +287,21 @@ int CeedElemRestrictionCreateVector(CeedElemRestriction rstr, CeedVector *lvec,
 }
 
 /**
-  @brief Restrict an L-vector to an E-vector or apply transpose
+  @brief Restrict an L-vector to an E-vector or apply its transpose
 
   @param rstr    CeedElemRestriction
   @param tmode   Apply restriction or transpose
-  @param lmode   Ordering of the ncomp components
-  @param u       Input vector (of size @a nnodes * @a ncomp when
-                   tmode=CEED_NOTRANSPOSE)
-  @param v       Output vector (of size @a nelem * @a elemsize when
-                   tmode=CEED_NOTRANSPOSE)
+  @param lmode   Ordering of the ncomp components, i.e. it specifies
+                   the ordering of the components of the l-vector used
+                   by this CeedElemRestriction. CEED_NOTRANSPOSE indicates
+                   the component is the outermost index and CEED_TRANSPOSE
+                   indicates the component is the innermost index in
+                   ordering of the l-vector
+  @param u       Input vector (of shape [@a nnodes, @a ncomp] when
+                   tmode=CEED_NOTRANSPOSE, lmode=CEED_TRANSPOSE)
+  @param v       Output vector (of shape [@a nelem * @a elemsize] when
+                   tmode=CEED_NOTRANSPOSE). Ordering of the e-vector is decided
+                   by the backend.
   @param request Request or CEED_REQUEST_IMMEDIATE
 
   @return An error code: 0 - success, otherwise - failure
@@ -295,8 +309,8 @@ int CeedElemRestrictionCreateVector(CeedElemRestriction rstr, CeedVector *lvec,
   @ref Advanced
 **/
 int CeedElemRestrictionApply(CeedElemRestriction rstr, CeedTransposeMode tmode,
-                             CeedTransposeMode lmode,
-                             CeedVector u, CeedVector v, CeedRequest *request) {
+                             CeedTransposeMode lmode, CeedVector u,
+                             CeedVector v, CeedRequest *request) {
   CeedInt m,n;
   int ierr;
 
@@ -308,31 +322,39 @@ int CeedElemRestrictionApply(CeedElemRestriction rstr, CeedTransposeMode tmode,
     n = rstr->nblk * rstr->blksize * rstr->elemsize * rstr->ncomp;
   }
   if (n != u->length)
-    return CeedError(rstr->ceed, 2,
-                     "Input vector size %d not compatible with element restriction (%d, %d)",
-                     u->length, m, n);
+    // LCOV_EXCL_START
+    return CeedError(rstr->ceed, 2, "Input vector size %d not compatible with "
+                     "element restriction (%d, %d)", u->length, m, n);
+  // LCOV_EXCL_STOP
   if (m != v->length)
-    return CeedError(rstr->ceed, 2,
-                     "Output vector size %d not compatible with element restriction (%d, %d)",
-                     v->length, m, n);
+    // LCOV_EXCL_START
+    return CeedError(rstr->ceed, 2, "Output vector size %d not compatible with "
+                     "element restriction (%d, %d)", v->length, m, n);
+  // LCOV_EXCL_STOP
   ierr = rstr->Apply(rstr, tmode, lmode, u, v, request); CeedChk(ierr);
 
   return 0;
 }
 
 /**
-  @brief Restrict an L-vector to a block of an E-vector or apply transpose
+  @brief Restrict an L-vector to a block of an E-vector or apply its transpose
 
   @param rstr    CeedElemRestriction
   @param block   Block number to restrict to/from, i.e. block=0 will handle
-                 elements [0 : blksize] and block=3 will handle elements
-                 [3*blksize : 4*blksize]
+                   elements [0 : blksize] and block=3 will handle elements
+                   [3*blksize : 4*blksize]
   @param tmode   Apply restriction or transpose
-  @param lmode   Ordering of the ncomp components
-  @param u       Input vector (of size @a nnodes * @a ncomp when
-                   tmode=CEED_NOTRANSPOSE)
-  @param v       Output vector (of size @a nelem * @a elemsize when
-                   tmode=CEED_NOTRANSPOSE)
+  @param lmode   Ordering of the ncomp components, i.e. it specifies
+                   the ordering of the components of the l-vector used
+                   by this CeedElemRestriction. CEED_NOTRANSPOSE indicates
+                   the component is the outermost index and CEED_TRANSPOSE
+                   indicates the component is the innermost index in
+                   ordering of the l-vector
+  @param u       Input vector (of shape [@a nnodes, @a ncomp] when
+                   tmode=CEED_NOTRANSPOSE, lmode=CEED_TRANSPOSE)
+  @param v       Output vector (of shape [@a blksize * @a elemsize] when
+                   tmode=CEED_NOTRANSPOSE). Ordering of the e-vector is decided
+                   by the backend.
   @param request Request or CEED_REQUEST_IMMEDIATE
 
   @return An error code: 0 - success, otherwise - failure
@@ -341,9 +363,8 @@ int CeedElemRestrictionApply(CeedElemRestriction rstr, CeedTransposeMode tmode,
 **/
 int CeedElemRestrictionApplyBlock(CeedElemRestriction rstr, CeedInt block,
                                   CeedTransposeMode tmode,
-                                  CeedTransposeMode lmode,
-                                  CeedVector u, CeedVector v,
-                                  CeedRequest *request) {
+                                  CeedTransposeMode lmode, CeedVector u,
+                                  CeedVector v, CeedRequest *request) {
   CeedInt m,n;
   int ierr;
 
@@ -355,17 +376,21 @@ int CeedElemRestrictionApplyBlock(CeedElemRestriction rstr, CeedInt block,
     n = rstr->blksize * rstr->elemsize * rstr->ncomp;
   }
   if (n != u->length)
-    return CeedError(rstr->ceed, 2,
-                     "Input vector size %d not compatible with element restriction (%d, %d)",
-                     u->length, m, n);
+    // LCOV_EXCL_START
+    return CeedError(rstr->ceed, 2, "Input vector size %d not compatible with "
+                     "element restriction (%d, %d)", u->length, m, n);
+  // LCOV_EXCL_STOP
   if (m != v->length)
-    return CeedError(rstr->ceed, 2,
-                     "Output vector size %d not compatible with element restriction (%d, %d)",
-                     v->length, m, n);
+    // LCOV_EXCL_START
+    return CeedError(rstr->ceed, 2, "Output vector size %d not compatible with "
+                     "element restriction (%d, %d)", v->length, m, n);
+  // LCOV_EXCL_STOP
   if (rstr->blksize*block > rstr->nelem)
-    return CeedError(rstr->ceed, 2,
-                     "Cannot retrieve block %d, element %d > total elements %d",
-                     block, rstr->blksize*block, rstr->nelem);
+    // LCOV_EXCL_START
+    return CeedError(rstr->ceed, 2, "Cannot retrieve block %d, element %d > "
+                     "total elements %d", block, rstr->blksize*block,
+                     rstr->nelem);
+  // LCOV_EXCL_STOP
   ierr = rstr->ApplyBlock(rstr, block, tmode, lmode, u, v, request);
   CeedChk(ierr);
 
@@ -373,16 +398,23 @@ int CeedElemRestrictionApplyBlock(CeedElemRestriction rstr, CeedInt block,
 }
 
 /**
-  @brief Get the multiplicity of DoFs in a CeedElemRestriction
+  @brief Get the multiplicity of nodes in a CeedElemRestriction
 
-  @param rstr      CeedElemRestriction
-  @param[out] mult Vector to store multiplicity (of size ndof)
+  @param rstr             CeedElemRestriction
+  @param lmode            Ordering of the ncomp components, i.e. it specifies
+                            the ordering of the components of the l-vector used
+                            by this CeedElemRestriction. CEED_NOTRANSPOSE
+                            indicates the component is the outermost index and
+                            CEED_TRANSPOSE indicates the component is the
+                            innermost index in ordering of the l-vector
+  @param[out] mult        Vector to store multiplicity (of size nnodes)
 
   @return An error code: 0 - success, otherwise - failure
 
   @ref Advanced
 **/
 int CeedElemRestrictionGetMultiplicity(CeedElemRestriction rstr,
+                                       CeedTransposeMode lmode,
                                        CeedVector mult) {
   int ierr;
   CeedVector evec;
@@ -392,8 +424,8 @@ int CeedElemRestrictionGetMultiplicity(CeedElemRestriction rstr,
   ierr = CeedVectorSetValue(evec, 1.0); CeedChk(ierr);
 
   // Apply to get multiplicity
-  ierr = CeedElemRestrictionApply(rstr, CEED_TRANSPOSE, CEED_NOTRANSPOSE, evec,
-                                  mult, CEED_REQUEST_IMMEDIATE); CeedChk(ierr);
+  ierr = CeedElemRestrictionApply(rstr, CEED_TRANSPOSE, lmode, evec, mult,
+                                  CEED_REQUEST_IMMEDIATE); CeedChk(ierr);
 
   // Cleanup
   ierr = CeedVectorDestroy(&evec); CeedChk(ierr);
@@ -420,7 +452,7 @@ int CeedElemRestrictionGetCeed(CeedElemRestriction rstr, Ceed *ceed) {
   @brief Get the total number of elements in the range of a CeedElemRestriction
 
   @param rstr             CeedElemRestriction
-  @param[out] numelements Variable to store number of elements
+  @param[out] numelem     Variable to store number of elements
 
   @return An error code: 0 - success, otherwise - failure
 
@@ -501,7 +533,7 @@ int CeedElemRestrictionGetNumBlocks(CeedElemRestriction rstr,
 /**
   @brief Get the size of blocks in the CeedElemRestriction
 
-  @param r                CeedElemRestriction
+  @param rstr             CeedElemRestriction
   @param[out] blksize     Variable to store size of blocks
 
   @return An error code: 0 - success, otherwise - failure
@@ -517,15 +549,14 @@ int CeedElemRestrictionGetBlockSize(CeedElemRestriction rstr,
 /**
   @brief Get the backend data of a CeedElemRestriction
 
-  @param r                CeedElemRestriction
+  @param rstr             CeedElemRestriction
   @param[out] data        Variable to store data
 
   @return An error code: 0 - success, otherwise - failure
 
   @ref Advanced
 **/
-int CeedElemRestrictionGetData(CeedElemRestriction rstr,
-                               void* *data) {
+int CeedElemRestrictionGetData(CeedElemRestriction rstr, void **data) {
   *data = rstr->data;
   return 0;
 }
@@ -533,15 +564,14 @@ int CeedElemRestrictionGetData(CeedElemRestriction rstr,
 /**
   @brief Set the backend data of a CeedElemRestriction
 
-  @param[out] r           CeedElemRestriction
+  @param[out] rstr        CeedElemRestriction
   @param data             Data to set
 
   @return An error code: 0 - success, otherwise - failure
 
   @ref Advanced
 **/
-int CeedElemRestrictionSetData(CeedElemRestriction rstr,
-                               void* *data) {
+int CeedElemRestrictionSetData(CeedElemRestriction rstr, void **data) {
   rstr->data = *data;
   return 0;
 }
@@ -549,24 +579,24 @@ int CeedElemRestrictionSetData(CeedElemRestriction rstr,
 /**
   @brief View a CeedElemRestriction
 
-  @param[in] rstr CeedElemRestriction to view
-  @param[in] stream Stream to write; typically stdout/stderr or a file
+  @param[in] rstr    CeedElemRestriction to view
+  @param[in] stream  Stream to write; typically stdout/stderr or a file
 
   @return Error code: 0 - success, otherwise - failure
 
   @ref Utility
 **/
 int CeedElemRestrictionView(CeedElemRestriction rstr, FILE *stream) {
-  fprintf(stream,
-          "CeedElemRestriction from (%d, %d) to %d elements with %d nodes each\n",
-          rstr->nnodes, rstr->ncomp, rstr->nelem, rstr->elemsize);
+  fprintf(stream, "CeedElemRestriction from (%d, %d) to %d elements with %d "
+          "nodes each\n", rstr->nnodes, rstr->ncomp, rstr->nelem,
+          rstr->elemsize);
   return 0;
 }
 
 /**
   @brief Destroy a CeedElemRestriction
 
-  @param rstr CeedElemRestriction to destroy
+  @param rstr  CeedElemRestriction to destroy
 
   @return An error code: 0 - success, otherwise - failure
 
@@ -575,7 +605,8 @@ int CeedElemRestrictionView(CeedElemRestriction rstr, FILE *stream) {
 int CeedElemRestrictionDestroy(CeedElemRestriction *rstr) {
   int ierr;
 
-  if (!*rstr || --(*rstr)->refcount > 0) return 0;
+  if (!*rstr || --(*rstr)->refcount > 0)
+    return 0;
   if ((*rstr)->Destroy) {
     ierr = (*rstr)->Destroy(*rstr); CeedChk(ierr);
   }

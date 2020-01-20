@@ -88,7 +88,7 @@ There are multiple supported backends, which can be selected at runtime in the e
 | :----------------------- | :------------------------------------------------ |
 | `/cpu/self/ref/serial`   | Serial reference implementation                   |
 | `/cpu/self/ref/blocked`  | Blocked refrence implementation                   |
-| `/cpu/self/ref/memcheck` | Memcheck backend, undefined value checks          |
+| `/cpu/self/memcheck`     | Memcheck backend, undefined value checks          |
 | `/cpu/self/opt/serial`   | Serial optimized C implementation                 |
 | `/cpu/self/opt/blocked`  | Blocked optimized C implementation                |
 | `/cpu/self/avx/serial`   | Serial AVX implementation                         |
@@ -117,13 +117,16 @@ The `/cpu/self/opt/*` backends are written in pure C and use partial e-vectors t
 The `/cpu/self/avx/*` backends rely upon AVX instructions to provide vectorized CPU performance.
 
 The `/cpu/self/xsmm/*` backends rely upon the [LIBXSMM](http://github.com/hfp/libxsmm) package
-to provide vectorized CPU performance. The LIBXSMM backend does not use BLAS or MKL; however,
-if LIBXSMM was linked to MKL, this can be specified with the compilation flag `MKL=1`.
+to provide vectorized CPU performance. If linking MKL and LIBXSMM is desired but
+the Makefile is not detecting `MKLROOT`, linking libCEED against MKL can be
+forced by setting the environment variable `MKL=1`.
 
-The `/cpu/self/ref/memcheck` backend relies upon the [Valgrind](http://valgrind.org/) Memcheck tool
+The `/cpu/self/memcheck/*` backends rely upon the [Valgrind](http://valgrind.org/) Memcheck tool
 to help verify that user QFunctions have no undefined values. To use, run your code with
-Valgrind and the Memcheck backend, e.g. `valgrind ./build/ex1 -ceed /cpu/self/ref/memcheck`. A
+Valgrind and the Memcheck backends, e.g. `valgrind ./build/ex1 -ceed /cpu/self/ref/memcheck`. A
 'development' or 'debugging' version of Valgrind with headers is required to use this backend.
+This backend can be run in serial or blocked mode and defaults to running in the serial mode
+if `/cpu/self/memcheck` is selected at runtime.
 
 The `/*/occa` backends rely upon the [OCCA](http://github.com/libocca/occa) package to provide
 cross platform performance.
@@ -145,8 +148,10 @@ and run:
 # libCEED examples on CPU and GPU
 cd examples/ceed
 make
-./ex1 -ceed /cpu/self
-./ex1 -ceed /gpu/occa
+./ex1-volume -ceed /cpu/self
+./ex1-volume -ceed /gpu/occa
+./ex2-surface -ceed /cpu/self
+./ex2-surface -ceed /gpu/occa
 cd ../..
 
 # MFEM+libCEED examples on CPU and GPU
@@ -172,6 +177,13 @@ make
 ./bps -problem bp4 -ceed /gpu/occa
 ./bps -problem bp5 -ceed /cpu/self
 ./bps -problem bp6 -ceed /gpu/occa
+cd ../..
+
+cd examples/petsc
+./area -problem cube -ceed /cpu/self -petscspace_degree 3
+./area -problem cube -ceed /gpu/occa -petscspace_degree 3
+./area -problem sphere -ceed /cpu/self -petscspace_degree 3 -dm_refine 2
+./area -problem sphere -ceed /gpu/occa -petscspace_degree 3 -dm_refine 2
 cd ../..
 
 cd examples/navier-stokes
@@ -231,6 +243,17 @@ kernel sources inside the user OCCA directory, `~/.occa` using
 This will allow OCCA to find the sources regardless of the location of the CEED
 library. One may occasionally need to clear the OCCA cache, which can be accomplished
 by removing the `~/.occa` directory or by calling `$(OCCA_DIR)/bin/occa clear -a`.
+
+To install libCEED for Python, run
+
+    python setup.py build install
+
+with the desired setuptools options, such as `--user`.
+
+Alternatively, if libCEED is installed in the directory specified by the
+environment variable `CEED_DIR`, then run
+
+    pip install .
 
 ### pkg-config
 

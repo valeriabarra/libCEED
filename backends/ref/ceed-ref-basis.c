@@ -16,6 +16,9 @@
 
 #include "ceed-ref.h"
 
+//------------------------------------------------------------------------------
+// Basis Apply
+//------------------------------------------------------------------------------
 static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
                               CeedTransposeMode tmode, CeedEvalMode emode,
                               CeedVector U, CeedVector V) {
@@ -32,11 +35,13 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
   const CeedInt add = (tmode == CEED_TRANSPOSE);
   const CeedScalar *u;
   CeedScalar *v;
-  if (U) {
+  if (U != CEED_VECTOR_NONE) {
     ierr = CeedVectorGetArrayRead(U, CEED_MEM_HOST, &u); CeedChk(ierr);
   } else if (emode != CEED_EVAL_WEIGHT) {
+    // LCOV_EXCL_START
     return CeedError(ceed, 1,
                      "An input vector is required for this CeedEvalMode");
+    // LCOV_EXCL_STOP
   }
   ierr = CeedVectorGetArray(V, CEED_MEM_HOST, &v); CeedChk(ierr);
 
@@ -68,7 +73,7 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
         CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = nelem;
         CeedScalar tmp[2][nelem*ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
         CeedScalar *interp1d;
-        ierr = CeedBasisGetInterp(basis, &interp1d); CeedChk(ierr);
+        ierr = CeedBasisGetInterp1D(basis, &interp1d); CeedChk(ierr);
         for (CeedInt d=0; d<dim; d++) {
           ierr = CeedTensorContractApply(contract, pre, P, post, Q,
                                          interp1d, tmode, add&&(d==dim-1),
@@ -94,7 +99,7 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
       ierr = CeedBasisGetData(basis, (void *)&impl); CeedChk(ierr);
       CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = nelem;
       CeedScalar *interp1d;
-      ierr = CeedBasisGetInterp(basis, &interp1d); CeedChk(ierr);
+      ierr = CeedBasisGetInterp1D(basis, &interp1d); CeedChk(ierr);
       if (impl->collograd1d) {
         CeedScalar tmp[2][nelem*ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
         CeedScalar interp[nelem*ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
@@ -141,22 +146,24 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
         }
       } else if (impl->collointerp) { // Qpts collocated with nodes
         CeedScalar *grad1d;
-        ierr = CeedBasisGetGrad(basis, &grad1d); CeedChk(ierr);
+        ierr = CeedBasisGetGrad1D(basis, &grad1d); CeedChk(ierr);
 
         // Dim contractions, identity in other directions
+        CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = nelem;
         for (CeedInt d=0; d<dim; d++) {
-          CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = nelem;
           ierr = CeedTensorContractApply(contract, pre, P, post, Q,
                                          grad1d, tmode, add&&(d>0),
                                          tmode == CEED_NOTRANSPOSE
-                                           ? u : u+d*ncomp*nqpt*nelem,
+                                         ? u : u+d*ncomp*nqpt*nelem,
                                          tmode == CEED_TRANSPOSE
-                                           ? v : v+d*ncomp*nqpt*nelem);
+                                         ? v : v+d*ncomp*nqpt*nelem);
           CeedChk(ierr);
-        }      
+          pre /= P;
+          post *= Q;
+        }
       } else { // Underintegration, P > Q
         CeedScalar *grad1d;
-        ierr = CeedBasisGetGrad(basis, &grad1d); CeedChk(ierr);
+        ierr = CeedBasisGetGrad1D(basis, &grad1d); CeedChk(ierr);
 
         if (tmode == CEED_TRANSPOSE) {
           P = Q1d, Q = P1d;
@@ -188,8 +195,10 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
     // Retrieve interpolation weights
     case CEED_EVAL_WEIGHT: {
       if (tmode == CEED_TRANSPOSE)
+        // LCOV_EXCL_START
         return CeedError(ceed, 1,
                          "CEED_EVAL_WEIGHT incompatible with CEED_TRANSPOSE");
+      // LCOV_EXCL_STOP
       CeedInt Q = Q1d;
       CeedScalar *qweight1d;
       ierr = CeedBasisGetQWeights(basis, &qweight1d); CeedChk(ierr);
@@ -205,6 +214,7 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
             }
       }
     } break;
+    // LCOV_EXCL_START
     // Evaluate the divergence to/from the quadrature points
     case CEED_EVAL_DIV:
       return CeedError(ceed, 1, "CEED_EVAL_DIV not supported");
@@ -215,6 +225,7 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
     case CEED_EVAL_NONE:
       return CeedError(ceed, 1,
                        "CEED_EVAL_NONE does not make sense in this context");
+      // LCOV_EXCL_STOP
     }
   } else {
     // Non-tensor basis
@@ -234,28 +245,41 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
     break;
     // Evaluate the gradient to/from quadrature points
     case CEED_EVAL_GRAD: {
-      CeedInt P = nnodes, Q = dim*nqpt;
+      CeedInt P = nnodes, Q = nqpt;
+      CeedInt dimstride = nqpt * ncomp * nelem;
+      CeedInt gradstride = nqpt * nnodes;
       CeedScalar *grad;
       ierr = CeedBasisGetGrad(basis, &grad); CeedChk(ierr);
       if (tmode == CEED_TRANSPOSE) {
-        P = dim*nqpt; Q = nnodes;
+        P = nqpt; Q = nnodes;
+        for (CeedInt d = 0; d < dim; d++) {
+          ierr = CeedTensorContractApply(contract, ncomp, P, nelem, Q,
+                                         grad + d * gradstride, tmode, add,
+                                         u + d * dimstride, v); CeedChk(ierr);
+        }
+      } else {
+        for (CeedInt d = 0; d < dim; d++) {
+          ierr = CeedTensorContractApply(contract, ncomp, P, nelem, Q,
+                                         grad + d * gradstride, tmode, add,
+                                         u, v + d * dimstride); CeedChk(ierr);
+        }
       }
-      ierr = CeedTensorContractApply(contract, ncomp, P, nelem, Q,
-                                     grad, tmode, add, u, v);
-      CeedChk(ierr);
     }
     break;
     // Retrieve interpolation weights
     case CEED_EVAL_WEIGHT: {
       if (tmode == CEED_TRANSPOSE)
+        // LCOV_EXCL_START
         return CeedError(ceed, 1,
                          "CEED_EVAL_WEIGHT incompatible with CEED_TRANSPOSE");
+      // LCOV_EXCL_STOP
       CeedScalar *qweight;
       ierr = CeedBasisGetQWeights(basis, &qweight); CeedChk(ierr);
       for (CeedInt i=0; i<nqpt; i++)
         for (CeedInt e=0; e<nelem; e++)
           v[i*nelem + e] = qweight[i];
     } break;
+    // LCOV_EXCL_START
     // Evaluate the divergence to/from the quadrature points
     case CEED_EVAL_DIV:
       return CeedError(ceed, 1, "CEED_EVAL_DIV not supported");
@@ -266,15 +290,19 @@ static int CeedBasisApply_Ref(CeedBasis basis, CeedInt nelem,
     case CEED_EVAL_NONE:
       return CeedError(ceed, 1,
                        "CEED_EVAL_NONE does not make sense in this context");
+      // LCOV_EXCL_STOP
     }
   }
-  if (U) {
+  if (U != CEED_VECTOR_NONE) {
     ierr = CeedVectorRestoreArrayRead(U, &u); CeedChk(ierr);
   }
   ierr = CeedVectorRestoreArray(V, &v); CeedChk(ierr);
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Basis Destroy Non-Tensor
+//------------------------------------------------------------------------------
 static int CeedBasisDestroyNonTensor_Ref(CeedBasis basis) {
   int ierr;
   CeedTensorContract contract;
@@ -283,6 +311,37 @@ static int CeedBasisDestroyNonTensor_Ref(CeedBasis basis) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Basis Create Non-Tensor
+//------------------------------------------------------------------------------
+int CeedBasisCreateH1_Ref(CeedElemTopology topo, CeedInt dim,
+                          CeedInt nnodes, CeedInt nqpts,
+                          const CeedScalar *interp,
+                          const CeedScalar *grad,
+                          const CeedScalar *qref,
+                          const CeedScalar *qweight,
+                          CeedBasis basis) {
+  int ierr;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+
+  Ceed parent;
+  ierr = CeedGetParent(ceed, &parent); CeedChk(ierr);
+  CeedTensorContract contract;
+  ierr = CeedTensorContractCreate(parent, basis, &contract); CeedChk(ierr);
+  ierr = CeedBasisSetTensorContract(basis, &contract); CeedChk(ierr);
+
+  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Apply",
+                                CeedBasisApply_Ref); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Destroy",
+                                CeedBasisDestroyNonTensor_Ref); CeedChk(ierr);
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Basis Destroy Tensor
+//------------------------------------------------------------------------------
 static int CeedBasisDestroyTensor_Ref(CeedBasis basis) {
   int ierr;
   CeedTensorContract contract;
@@ -297,6 +356,9 @@ static int CeedBasisDestroyTensor_Ref(CeedBasis basis) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Basis Create Tensor
+//------------------------------------------------------------------------------
 int CeedBasisCreateTensorH1_Ref(CeedInt dim, CeedInt P1d,
                                 CeedInt Q1d, const CeedScalar *interp1d,
                                 const CeedScalar *grad1d,
@@ -339,29 +401,4 @@ int CeedBasisCreateTensorH1_Ref(CeedInt dim, CeedInt P1d,
   return 0;
 }
 
-
-
-int CeedBasisCreateH1_Ref(CeedElemTopology topo, CeedInt dim,
-                          CeedInt nnodes, CeedInt nqpts,
-                          const CeedScalar *interp,
-                          const CeedScalar *grad,
-                          const CeedScalar *qref,
-                          const CeedScalar *qweight,
-                          CeedBasis basis) {
-  int ierr;
-  Ceed ceed;
-  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
-
-  Ceed parent;
-  ierr = CeedGetParent(ceed, &parent); CeedChk(ierr);
-  CeedTensorContract contract;
-  ierr = CeedTensorContractCreate(parent, basis, &contract); CeedChk(ierr);
-  ierr = CeedBasisSetTensorContract(basis, &contract); CeedChk(ierr);
-
-  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Apply",
-                                CeedBasisApply_Ref); CeedChk(ierr);
-  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Destroy",
-                                CeedBasisDestroyNonTensor_Ref); CeedChk(ierr);
-
-  return 0;
-}
+//------------------------------------------------------------------------------

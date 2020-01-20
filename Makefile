@@ -29,6 +29,7 @@ ifeq (,$(filter-out undefined default,$(origin LINK)))
   LINK = $(CC)
 endif
 NVCC ?= $(CUDA_DIR)/bin/nvcc
+NVCC_CXX ?= $(CXX)
 
 # ASAN must be left empty if you don't want to use it
 ASAN ?=
@@ -72,15 +73,21 @@ endif
 # export LSAN_OPTIONS=suppressions=.asanignore
 AFLAGS = -fsanitize=address #-fsanitize=undefined -fno-omit-frame-pointer
 
-OPT    = -O -g -march=native -ffp-contract=fast -fopenmp-simd
+MARCH := $(shell $(CC) --version -v < /dev/null 2>&1 | grep -c ' -march=')
+ifeq ($(MARCH),1)
+  MARCHFLAG := -march=native
+else
+  MARCHFLAG := -mtune=native
+endif
+OPT    = -O -g $(MARCHFLAG) -ffp-contract=fast -fopenmp-simd
 CFLAGS = -std=c99 $(OPT) -Wall -Wextra -Wno-unused-parameter -fPIC -MMD -MP
-CXXFLAGS = $(OPT) -Wall -Wextra -Wno-unused-parameter -fPIC -MMD -MP
+CXXFLAGS = -std=c++11 $(OPT) -Wall -Wextra -Wno-unused-parameter -fPIC -MMD -MP
 NVCCFLAGS = -ccbin $(CXX) -Xcompiler "$(OPT)" -Xcompiler -fPIC
 # If using the IBM XL Fortran (xlf) replace FFLAGS appropriately:
 ifneq ($(filter %xlf %xlf_r,$(FC)),)
-  FFLAGS = $(OPT) -ffree-form -qpreprocess -qextname -qpic -MMD
+  FFLAGS = $(OPT) -ffree-form -qpreprocess -qextname -qpic -MMD -DSOURCE_DIR='"$(abspath $(<D))/"'
 else # gfortran/Intel-style options
-  FFLAGS = -cpp     $(OPT) -Wall -Wextra -Wno-unused-parameter -Wno-unused-dummy-argument -fPIC -MMD -MP
+  FFLAGS = -cpp     $(OPT) -Wall -Wextra -Wno-unused-parameter -Wno-unused-dummy-argument -fPIC -MMD -MP -DSOURCE_DIR='"$(abspath $(<D))/"'
 endif
 
 ifeq ($(UNDERSCORE), 1)
@@ -127,6 +134,8 @@ ceed.pc := $(LIBDIR)/pkgconfig/ceed.pc
 libceed := $(LIBDIR)/libceed.$(SO_EXT)
 CEED_LIBS = -lceed
 libceed.c := $(wildcard interface/ceed*.c)
+gallery.c := $(wildcard gallery/*/ceed*.c)
+libceed.c += $(gallery.c)
 libceed_test := $(LIBDIR)/libceed_test.$(SO_EXT)
 libceeds = $(libceed) $(libceed_test)
 BACKENDS_BUILTIN := /cpu/self/ref/serial /cpu/self/ref/blocked /cpu/self/opt/serial /cpu/self/opt/blocked
@@ -175,12 +184,14 @@ cuda-gen.cpp   := $(sort $(wildcard backends/cuda-gen/*.cpp))
 cuda-gen.cu    := $(sort $(wildcard backends/cuda-gen/*.cu))
 occa.c         := $(sort $(wildcard backends/occa/*.c))
 magma_preprocessor := python backends/magma/gccm.py
-magma_pre_src  := $(filter-out %_tmp.c, $(wildcard backends/magma/ceed-*.c))
+magma_pre_src  := $(filter-out %ceed-magma.c %_tmp.c, $(wildcard backends/magma/ceed-*.c))
 magma_dsrc     := $(wildcard backends/magma/magma_d*.c)
+magma_dsrc     += backends/magma/ceed-magma.c
 magma_tmp.c    := $(magma_pre_src:%.c=%_tmp.c)
 magma_tmp.cu   := $(magma_pre_src:%.c=%_cuda.cu)
 magma_allsrc.c := $(magma_dsrc) $(magma_tmp.c)
-magma_allsrc.cu:= $(magma_tmp.cu)
+magma_allsrc.cu:= $(magma_tmp.cu) backends/magma/magma_devptr.cu
+magma_allsrc.cu+= backends/magma/magma_dbasisApply_grad.cu backends/magma/magma_dbasisApply_interp.cu backends/magma/magma_dbasisApply_weight.cu
 
 # Output using the 216-color rules mode
 rule_file = $(notdir $(1))
@@ -233,7 +244,7 @@ info:
 	$(info ASAN          = $(or $(ASAN),(empty)))
 	$(info V             = $(or $(V),(empty)) [verbose=$(if $(V),on,off)])
 	$(info ------------------------------------)
-	$(info MEMCHK_STATUS = $(MEMCHK_STATUS)$(call backend_status,/cpu/self/ref/memcheck))
+	$(info MEMCHK_STATUS = $(MEMCHK_STATUS)$(call backend_status,/cpu/self/memcheck/serial /cpu/sef/memcheck/blocked))
 	$(info AVX_STATUS    = $(AVX_STATUS)$(call backend_status,/cpu/self/avx/serial /cpu/self/avx/blocked))
 	$(info XSMM_DIR      = $(XSMM_DIR)$(call backend_status,/cpu/self/xsmm/serial /cpu/self/xsmm/blocked))
 	$(info OCCA_DIR      = $(OCCA_DIR)$(call backend_status,/cpu/occa /gpu/occa /omp/occa))
@@ -273,7 +284,7 @@ MEMCHK := $(shell echo "\#include <valgrind/memcheck.h>" | $(CC) $(CPPFLAGS) -E 
 ifeq ($(MEMCHK),1)
   MEMCHK_STATUS = Enabled
   libceed.c += $(ceedmemcheck.c)
-  BACKENDS += /cpu/self/ref/memcheck
+  BACKENDS += /cpu/self/memcheck/serial /cpu/self/memcheck/blocked
 endif
 
 # AVX Backed
@@ -289,11 +300,14 @@ endif
 ifneq ($(wildcard $(XSMM_DIR)/lib/libxsmm.*),)
   $(libceeds) : LDFLAGS += -L$(XSMM_DIR)/lib -Wl,-rpath,$(abspath $(XSMM_DIR)/lib)
   $(libceeds) : LDLIBS += -lxsmm -ldl
-  MKL ?= 0
-  ifneq (0,$(MKL))
-    BLAS_LIB = -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
-  else
+  MKL ?=
+  ifeq (,$(MKL)$(MKLROOT))
     BLAS_LIB = -lblas
+  else
+    ifneq ($(MKLROOT),)
+      MKL_LINK = -L$(MKLROOT)/lib/intel64 -Wl,-rpath,$(MKLROOT)/lib/intel64
+    endif
+    BLAS_LIB = $(MKL_LINK) -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
   endif
   $(libceeds) : LDLIBS += $(BLAS_LIB)
   libceed.c += $(xsmm.c)
@@ -498,8 +512,9 @@ install : $(libceed) $(OBJDIR)/ceed.pc
 .PHONY : cln clean doc lib install all print test tst prove prv prove-all junit examples style tidy okl-cache okl-clear info info-backends
 
 cln clean :
-	$(RM) -r $(OBJDIR) $(LIBDIR)
+	$(RM) -r $(OBJDIR) $(LIBDIR) dist *egg* .pytest_cache *cffi*
 	$(MAKE) -C examples clean NEK5K_DIR="$(abspath $(NEK5K_DIR))"
+	$(MAKE) -C tests/python clean
 	$(RM) $(magma_tmp.c) $(magma_tmp.cu) backends/magma/*~ backends/magma/*.o
 	$(RM) benchmarks/*output.txt
 
@@ -511,13 +526,13 @@ doc :
 
 style :
 	@astyle --options=.astylerc \
-          $(filter-out include/ceedf.h tests/t310-basis-f.h, \
+          $(filter-out include/ceedf.h tests/t320-basis-f.h, \
             $(wildcard include/*.h interface/*.[ch] tests/*.[ch] backends/*/*.[ch] \
-              examples/*/*.[ch] examples/*/*.[ch]pp))
+              examples/*/*.[ch] examples/*/*.[ch]pp gallery/*/*.[ch]))
 
 CLANG_TIDY ?= clang-tidy
 %.c.tidy : %.c
-	$(CLANG_TIDY) $^ -- $(CPPFLAGS)
+	$(CLANG_TIDY) $^ -- $(CPPFLAGS) --std=c99
 
 tidy : $(libceed.c:%=%.tidy)
 
@@ -542,11 +557,14 @@ print-% :
 configure :
 	@: > config.mk
 	@echo "CC = $(CC)" | tee -a config.mk
+	@echo "CXX = $(CXX)" | tee -a config.mk
 	@echo "FC = $(FC)" | tee -a config.mk
 	@echo "NVCC = $(NVCC)" | tee -a config.mk
+	@echo "NVCC_CXX = $(NVCC_CXX)" | tee -a config.mk
 	@echo "CFLAGS = $(CFLAGS)" | tee -a config.mk
 	@echo "CPPFLAGS = $(CPPFLAGS)" | tee -a config.mk
 	@echo "FFLAGS = $(FFLAGS)" | tee -a config.mk
+	@echo "NVCCFLAGS = $(NVCCFLAGS)" | tee -a config.mk
 	@echo "LDFLAGS = $(LDFLAGS)" | tee -a config.mk
 	@echo "LDLIBS = $(LDLIBS)" | tee -a config.mk
 	@echo "MAGMA_DIR = $(MAGMA_DIR)" | tee -a config.mk

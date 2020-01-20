@@ -17,6 +17,9 @@
 #include <string.h>
 #include "ceed-opt.h"
 
+//------------------------------------------------------------------------------
+// Backend Destroy
+//------------------------------------------------------------------------------
 static int CeedDestroy_Opt(Ceed ceed) {
   int ierr;
   Ceed_Opt *data;
@@ -26,11 +29,16 @@ static int CeedDestroy_Opt(Ceed ceed) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Backend Init
+//------------------------------------------------------------------------------
 static int CeedInit_Opt_Serial(const char *resource, Ceed ceed) {
   int ierr;
   if (strcmp(resource, "/cpu/self")
       && strcmp(resource, "/cpu/self/opt/serial"))
+    // LCOV_EXCL_START
     return CeedError(ceed, 1, "Opt backend cannot use resource: %s", resource);
+  // LCOV_EXCL_STOP
 
   // Create refrence CEED that implementation will be dispatched
   //   through unless overridden
@@ -52,7 +60,11 @@ static int CeedInit_Opt_Serial(const char *resource, Ceed ceed) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Backend Register
+//------------------------------------------------------------------------------
 __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/self/opt/serial", CeedInit_Opt_Serial, 45);
 }
+//------------------------------------------------------------------------------

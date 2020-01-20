@@ -17,11 +17,16 @@
 #include <ceed-backend.h>
 #include <string.h>
 
+//------------------------------------------------------------------------------
+// Backend Init
+//------------------------------------------------------------------------------
 static int CeedInit_Tmpl(const char *resource, Ceed ceed) {
   int ierr;
   if (strcmp(resource, "/cpu/self")
       && strcmp(resource, "/cpu/self/tmpl/sub"))
+    // LCOV_EXCL_START
     return CeedError(ceed, 1, "Tmpl backend cannot use resource: %s", resource);
+  // LCOV_EXCL_STOP
 
   // Create refrence CEED that implementation will be dispatched
   //   through unless overridden
@@ -46,7 +51,11 @@ static int CeedInit_Tmpl(const char *resource, Ceed ceed) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Backend Register
+//------------------------------------------------------------------------------
 __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/self/tmpl/sub", CeedInit_Tmpl, 70);
 }
+//------------------------------------------------------------------------------
